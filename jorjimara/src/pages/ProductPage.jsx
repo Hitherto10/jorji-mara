@@ -71,7 +71,7 @@ function getImagesForVariant(allImages, variantId, productId) {
         .filter(img => img.variant_id === null && img.product_id === productId)
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-    const combined = [...sharedImages];
+    const combined = [...variantImages, ...sharedImages];
     return combined.length > 0 ? combined : allImages
         .filter(img => img.product_id === productId)
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));

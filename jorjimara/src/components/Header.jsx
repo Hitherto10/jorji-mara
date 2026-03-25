@@ -117,10 +117,10 @@ export default function Header() {
     return (
         <>
             {/* ── DESKTOP HEADER ── */}
-            <div className="z-90 grid grid-cols-3 text-black items-center px-10 lg:px-40 py-4">
+            <div className="z-90 grid grid-cols-3 text-black font-[Bricolage_Grotesque]  items-center px-10 lg:px-40 py-4">
 
                 {/* LEFT NAV — hidden on mobile */}
-                <nav className="hidden md:flex items-center space-x-8   font-[Inter]">
+                <nav className="hidden md:flex items-center space-x-8 ">
                     <a href="#" className="hover:opacity-60 transition-opacity">Home</a>
                     <a href="#" className="hover:opacity-60 transition-opacity">Contact</a>
                     <div className="flex items-center space-x-1 cursor-pointer hover:opacity-60 transition-opacity">
