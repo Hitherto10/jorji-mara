@@ -144,9 +144,6 @@ export default function Header() {
 
                 {/* RIGHT NAV */}
                 <nav className="flex items-center justify-end space-x-8  font-[Inter]">
-                    <div className="hidden md:flex items-center space-x-1 cursor-pointer hover:opacity-60 transition-opacity">
-                        <span>Collections</span>
-                    </div>
                     <div className="flex items-center space-x-4 md:space-x-5">
                         <Search className="w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />
                         <Handbag className="w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />

@@ -56,9 +56,6 @@ export default function HeroSection() {
 
                     {/* RIGHT NAV */}
                     <nav className="flex items-center space-x-8  font-[Inter]">
-                        <div className="hidden md:flex items-center space-x-1 cursor-pointer hover:opacity-60 transition-opacity">
-                            <span>Collections</span>
-                        </div>
                         <div className="flex items-center space-x-5">
                             <Search className="w-6 h-6 cursor-pointer hover:opacity-60 transition-opacity" />
                             <Handbag className="w-6 h-6 cursor-pointer hover:opacity-60 transition-opacity" />
