@@ -1,11 +1,13 @@
-import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Images } from "../components/img.js";
-import { newProducts } from "../components/content.js";
-import CollectionsShowcase from "./CollectionsShowcase.jsx";
-import HeroSection from "./HeroSection.jsx";
-import Footer from "../components/Footer.jsx";
+import React, {useState, useRef, useEffect} from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Images } from '../components/img.js'
+import CollectionsShowcase from './CollectionsShowcase.jsx'
+import HeroSection from './HeroSection.jsx'
+import Footer from '../components/Footer.jsx'
+import {fetchNewProducts} from "../components/content.js";
+import {SkeletonCard} from "../components/ProductSkeleton.jsx";
 
+// ─── ProductCard (homepage version — uses carousel) ──
 function ProductCard({ product }) {
     const navigate = useNavigate();
     const [currentIdx, setCurrentIdx] = useState(0);
@@ -121,11 +123,34 @@ function ProductCard({ product }) {
     );
 }
 
+// ─── Skeleton card ──
+
+
+// ─── Home ──
 export default function Home() {
+    const [newProducts, setNewProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                const data = await fetchNewProducts();
+                setNewProducts(data);
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        load();
+    }, []);
+
     return (
         <>
             <HeroSection />
 
+            {/* New Arrivals */}
             <section className="mx-auto font-[Bricolage_Grotesque] py-12 px-4 md:px-12 lg:px-28">
                 <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-8 gap-6">
                     <h2 className="font-serif text-3xl md:text-4xl font-light tracking-tight text-stone-900">
@@ -133,11 +158,18 @@ export default function Home() {
                     </h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                    {newProducts.map((product) => (
-                        <div key={product.id} className="bg-white">
-                            <ProductCard product={product} />
-                        </div>
-                    ))}
+                    {loading
+                        ? Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="bg-white">
+                                <SkeletonCard />
+                            </div>
+                        ))
+                        : newProducts.map(product => (
+                            <div key={product.id} className="bg-white">
+                                <ProductCard product={product} />
+                            </div>
+                        ))
+                    }
                 </div>
             </section>
 
@@ -152,29 +184,50 @@ export default function Home() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     <div className="relative group overflow-hidden rounded-sm min-h-75 md:min-h-100 lg:min-h-125 flex items-center justify-center text-center">
                         <div className="absolute inset-0">
-                            <img src="https://impulse-theme-apparel.myshopify.com/cdn/shop/files/zoe-NKjIT7u5nXE-unsplash_4731e75f-58b0-4df0-ad47-2812433d6154.png?v=1697225826&width=1200" alt="Limited time" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                            <div className="absolute inset-0 bg-black/10"></div>
+                            <img
+                                src="https://impulse-theme-apparel.myshopify.com/cdn/shop/files/zoe-NKjIT7u5nXE-unsplash_4731e75f-58b0-4df0-ad47-2812433d6154.png?v=1697225826&width=1200"
+                                alt="Limited time"
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-black/10" />
                         </div>
                         <div className="relative z-10 p-6 text-white">
                             <p className="italic text-sm md:text-base mb-1">Limited time</p>
                             <h2 className="text-3xl md:text-4xl font-bold mb-4">The Original.</h2>
-                            <a href="/collections/apparel" className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">View variations</a>
+                            <a href="/collections/apparel" className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
+                                View variations
+                            </a>
                         </div>
                     </div>
+
                     <div className="relative group overflow-hidden rounded-sm min-h-[300px] md:min-h-[400px] lg:min-h-[500px] flex items-end justify-end text-right">
                         <div className="absolute inset-0">
-                            <img src="https://impulse-theme-apparel.myshopify.com/cdn/shop/files/natalia-blauth-Y5NnPfnuOjA-unsplash_3b1fb8ed-c2bd-42c2-8b82-62dcf57f77b3.png?v=1697227800&width=1200" alt="N&F" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                            <div className="absolute inset-0 bg-black/10"></div>
+                            <img
+                                src="https://impulse-theme-apparel.myshopify.com/cdn/shop/files/natalia-blauth-Y5NnPfnuOjA-unsplash_3b1fb8ed-c2bd-42c2-8b82-62dcf57f77b3.png?v=1697227800&width=1200"
+                                alt="N&F"
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-black/10" />
                         </div>
                         <div className="relative z-10 p-8 text-white">
                             <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Now stocking<br />J~M</h2>
-                            <a href="/collections/naked-and-famous" className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">Shop JorjiMara</a>
+                            <a href="/collections/naked-and-famous" className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
+                                Shop JorjiMara
+                            </a>
                         </div>
                     </div>
+
                     <div className="relative group overflow-hidden rounded-sm min-h-[200px] md:min-h-[280px] md:col-span-2 flex items-end justify-start text-left">
                         <div className="absolute inset-0">
-                            <img src={Images.wideImage} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                            <div className="absolute inset-0 bg-black/20"></div>
+                            <img
+                                src={Images.wideImage}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                loading="lazy"
+                                alt="Your Style"
+                            />
+                            <div className="absolute inset-0 bg-black/20" />
                         </div>
                         <div className="relative z-10 p-8 text-white">
                             <h2 className="text-3xl md:text-4xl font-bold mb-1">Your Style. <br /> Your Happy Place</h2>
@@ -184,6 +237,7 @@ export default function Home() {
                 </div>
             </section>
 
+            {/* CollectionsShowcase now uses the cached hook internally */}
             <CollectionsShowcase />
 
             <section className="font-[Bricolage_Grotesque] text-stone-900 mx-auto max-w-7xl px-6 my-16 md:my-24 font-light antialiased">
@@ -197,8 +251,12 @@ export default function Home() {
                         </div>
                         <div className="relative grid grid-cols-12 items-start gap-4">
                             <div className="col-span-12 group relative aspect-[3/4] overflow-hidden bg-white shadow-xl">
-                                <img src={Images.jorjiImage} alt="Jorji" className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"></div>
+                                <img
+                                    src={Images.jorjiImage}
+                                    alt="Jorji"
+                                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
                             </div>
                         </div>
                     </div>
@@ -209,12 +267,14 @@ export default function Home() {
                             <p>Each item is crafted slowly, thoughtfully, and meant to be worn, lived in, and loved for a long time.</p>
                             <p className="text-xs md:text-sm font-medium italic text-stone-600 tracking-wide mt-10">Thanks so much for stopping by my store, it really means the world that you're here.</p>
                         </div>
-                        <a href="/collections/shop-all" className="inline-block w-full text-center md:w-auto mt-8 bg-[#4D0010] text-white text-xs font-bold uppercase tracking-[0.2em] px-12 py-4 shadow-lg hover:bg-stone-800 transition-colors duration-300">Shop here</a>
+                        <a href="/collections/shop-all" className="inline-block w-full text-center md:w-auto mt-8 bg-[#4D0011] text-white text-xs font-bold uppercase tracking-[0.2em] px-12 py-4 shadow-lg hover:bg-stone-800 transition-colors duration-300">
+                            Shop here
+                        </a>
                     </div>
                 </div>
             </section>
 
             <Footer />
         </>
-    );
+    )
 }

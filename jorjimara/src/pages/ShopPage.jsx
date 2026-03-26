@@ -1,19 +1,41 @@
-import { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
 import AddToCartButton from '../components/AddToCartButton.jsx'
+import ProductImageCarousel from '../components/ProductImageCarousel.jsx'
 import { useProducts, useFilterOptions } from '../hooks/useProducts.js'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
+import {SkeletonCard} from "../components/ProductSkeleton.jsx";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(n)
 
-function getPrimaryImage(product) {
-    const imgs = product.product_images ?? []
-    const primary = imgs.find(i => i.is_primary ) ?? imgs.find(i => !i.variant_id) ?? imgs[0]
-    console.log(primary)
-    return primary?.url ?? null
+/**
+ * Returns all images for a product card, sorted for display.
+ * Priority: shared images (no variant_id) → variant images for the first active variant
+ * Capped at 4 to keep the carousel lightweight.
+ */
+function getCardImages(product) {
+    const allImgs = product.product_images ?? []
+    const activeVarId = getFirstVariant(product)?.id ?? null
+
+    // Shared images (not tied to any variant)
+    const shared = allImgs
+        .filter(img => img.variant_id === null)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+
+    // Images for the first active variant
+    const variantImgs = activeVarId
+        ? allImgs
+            .filter(img => img.variant_id === activeVarId)
+            .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        : []
+
+    const combined = [...shared, ...variantImgs]
+    const deduped  = combined.filter((img, idx, arr) => arr.findIndex(x => x.url === img.url) === idx)
+
+    return deduped.slice(0, 4).map(img => img.url)
 }
 
 function getActiveVariants(product) {
@@ -24,66 +46,66 @@ function getFirstVariant(product) {
     return getActiveVariants(product)[0] ?? null
 }
 
-// ─── ProductCard (listing version) ───────────────────────────────────────────
+// ─── ProductCard ──────────────────────────────────────────────────────────────
 function ProductCard({ product }) {
-    const navigate   = useNavigate()
+    const navigate = useNavigate()
     const firstVariant = getFirstVariant(product)
-    const imageUrl   = getPrimaryImage(product)
-    const price      = Number(firstVariant?.price ?? product.price)
-    const hasStock   = getActiveVariants(product).some(v => v.stock > 0)
+    const images = getCardImages(product)
+    const price = Number(firstVariant?.price ?? product.price)
+    const hasStock = getActiveVariants(product).some(v => v.stock > 0)
+    const badge = product.is_new_in
+        ? 'New'
+        : product.compare_price && Number(product.compare_price) > price
+            ? 'Sale'
+            : null
 
-    // Unique active colors for the swatch row
+    // Unique active color swatches
     const colorMap = {}
     getActiveVariants(product).forEach(v => {
         if (v.color) colorMap[v.color.toLowerCase()] = { name: v.color, hex: v.color_hex?.[0] ?? '#ccc' }
     })
     const colors = Object.values(colorMap).slice(0, 6)
 
-    const goToProduct = () => {
+    const goToProduct = (e) => {
+        e?.stopPropagation()
         const url = firstVariant
             ? `/products/${product.slug}?variant=${firstVariant.id}`
             : `/products/${product.slug}`
         navigate(url)
     }
 
+    const handleQuickAdd = (e) => {
+        e?.stopPropagation()
+        // Quick add navigates to product page so the user can select variants.
+        // Full inline quick-add requires a variant-picker modal (future enhancement).
+        navigate(
+            firstVariant
+                ? `/products/${product.slug}?variant=${firstVariant.id}`
+                : `/products/${product.slug}`
+        )
+    }
+
     return (
-        <div className="group flex flex-col cursor-pointer" onClick={goToProduct}>
-            {/* Image */}
-            <div className="relative aspect-[3/4] overflow-hidden bg-stone-100">
-                {imageUrl
-                    ? <img src={imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-                    : <div className="w-full h-full bg-stone-100 flex items-center justify-center text-stone-300 text-xs">No image</div>
-                }
-
-                {/* Badges */}
-                <div className="absolute top-3 left-3 flex flex-col gap-1">
-                    {product.is_new_in && (
-                        <span className="bg-stone-900 text-white text-[9px] tracking-widest uppercase px-2 py-0.5">New</span>
-                    )}
-                    {!hasStock && (
-                        <span className="bg-white/90 text-stone-600 text-[9px] tracking-widest uppercase px-2 py-0.5">Sold out</span>
-                    )}
-                    {product.compare_price && Number(product.compare_price) > price && (
-                        <span className="bg-[#4D0010] text-white text-[9px] tracking-widest uppercase px-2 py-0.5">Sale</span>
-                    )}
-                </div>
-
-                {/* Quick add */}
-                <div className="absolute bottom-0 left-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" onClick={e => e.stopPropagation()}>
-                    <AddToCartButton
-                        product={product}
-                        variant={firstVariant}
-                        imageUrl={imageUrl}
-                        isOutOfStock={!hasStock}
-                        compact
-                        label="Quick Add"
-                    />
-                </div>
-            </div>
+        <div
+            className="group flex flex-col cursor-pointer font-[Bricolage_Grotesque]"
+            onClick={goToProduct}
+            role="link"
+            tabIndex={0}
+            onKeyDown={e => e.key === 'Enter' && goToProduct()}
+        >
+            {/* Carousel */}
+            <ProductImageCarousel
+                images={images}
+                productName={product.name}
+                badge={badge}
+                isOutOfStock={!hasStock}
+                onQuickAdd={handleQuickAdd}
+                showQuickAdd
+            />
 
             {/* Info */}
             <div className="pt-3 pb-1">
-                <p className="text-sm text-stone-800 leading-snug">{product.name}</p>
+                <p className="text-sm text-stone-800 leading-snug line-clamp-2">{product.name}</p>
                 <div className="flex items-baseline gap-2 mt-1">
                     <span className="text-sm text-stone-500 font-light">₦{fmt(price)}</span>
                     {product.compare_price && Number(product.compare_price) > price && (
@@ -98,12 +120,14 @@ function ProductCard({ product }) {
                             <span
                                 key={c.name}
                                 title={c.name}
-                                className="w-3.5 h-3.5 rounded-full border border-stone-200"
+                                className="w-3.5 h-3.5 rounded-full border border-stone-200 shrink-0"
                                 style={{ background: c.hex }}
                             />
                         ))}
                         {Object.keys(colorMap).length > 6 && (
-                            <span className="text-[10px] text-stone-400 self-center">+{Object.keys(colorMap).length - 6}</span>
+                            <span className="text-[10px] text-stone-400 self-center">
+                +{Object.keys(colorMap).length - 6}
+              </span>
                         )}
                     </div>
                 )}
@@ -112,21 +136,24 @@ function ProductCard({ product }) {
     )
 }
 
-// ─── FilterPanel ─────────────────────────────────────────────────────────────
+
+// ─── Filter helpers ───────────────────────────────────────────────────────────
 function FilterSection({ title, children, defaultOpen = true }) {
     const [open, setOpen] = useState(defaultOpen)
     return (
         <div className="border-b border-stone-200 pb-4 mb-4">
-            <button onClick={() => setOpen(v => !v)} className="w-full flex items-center justify-between mb-3 group">
+            <button
+                onClick={() => setOpen(v => !v)}
+                className="w-full flex items-center justify-between mb-3 group"
+            >
                 <span className="text-xs font-semibold uppercase tracking-widest text-stone-700">{title}</span>
-                <span className={`text-stone-400 transition-transform ${open ? 'rotate-180' : ''}`}>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-stone-400 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
             {open && children}
         </div>
     )
 }
+
 
 function FilterPanel({ filters, setFilters, options, onClose }) {
     const toggle = (key, value) => {
@@ -134,32 +161,38 @@ function FilterPanel({ filters, setFilters, options, onClose }) {
             const arr = prev[key] ?? []
             return {
                 ...prev,
-                [key]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value]
+                [key]: arr.includes(value) ? arr.filter(v => v !== value) : [...arr, value],
             }
         })
     }
 
-    const activeCount = (filters.colors?.length ?? 0) + (filters.sizes?.length ?? 0) + (filters.categories?.length ?? 0) + (filters.inStock ? 1 : 0)
+    const activeCount =
+        (filters.colors?.length ?? 0) +
+        (filters.sizes?.length ?? 0) +
+        (filters.categories?.length ?? 0) +
+        (filters.inStock ? 1 : 0)
 
     return (
         <div className="w-full lg:w-56 shrink-0">
             <div className="flex items-center justify-between mb-5">
-                <span className="text-xs font-semibold uppercase tracking-widest text-stone-700">
-                    Filters {activeCount > 0 && <span className="ml-1 text-[#4D0010]">({activeCount})</span>}
-                </span>
-                {activeCount > 0 && (
-                    <button
-                        onClick={() => setFilters({ colors: [], sizes: [], categories: [], inStock: false })}
-                        className="text-xs text-stone-400 hover:text-stone-700 underline"
-                    >
-                        Clear all
-                    </button>
-                )}
-                {onClose && (
-                    <button onClick={onClose} className="lg:hidden text-stone-400 hover:text-stone-700">
-                        <X className="w-4 h-4" />
-                    </button>
-                )}
+        <span className="text-xs font-semibold uppercase tracking-widest text-stone-700">
+          Filters{activeCount > 0 && <span className="ml-1 text-[#4D0010]">({activeCount})</span>}
+        </span>
+                <div className="flex items-center gap-3">
+                    {activeCount > 0 && (
+                        <button
+                            onClick={() => setFilters({ colors: [], sizes: [], categories: [], inStock: false })}
+                            className="text-xs text-stone-400 hover:text-stone-700 underline"
+                        >
+                            Clear all
+                        </button>
+                    )}
+                    {onClose && (
+                        <button onClick={onClose} className="lg:hidden text-stone-400 hover:text-stone-700">
+                            <X className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Categories */}
@@ -172,9 +205,15 @@ function FilterPanel({ filters, setFilters, options, onClose }) {
                                 <label key={cat.id} className="flex items-center gap-2.5 cursor-pointer group">
                                     <div
                                         onClick={() => toggle('categories', cat.slug)}
-                                        className={`w-3.5 h-3.5 border transition-colors flex-shrink-0 ${checked ? 'bg-stone-900 border-stone-900' : 'border-stone-300 group-hover:border-stone-600'}`}
+                                        className={`w-3.5 h-3.5 border transition-colors flex-shrink-0 ${
+                                            checked ? 'bg-stone-900 border-stone-900' : 'border-stone-300 group-hover:border-stone-600'
+                                        }`}
                                     >
-                                        {checked && <svg viewBox="0 0 10 10" className="w-full h-full text-white" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="2,5 4,7.5 8,2.5"/></svg>}
+                                        {checked && (
+                                            <svg viewBox="0 0 10 10" className="w-full h-full text-white" fill="none" stroke="currentColor" strokeWidth={2}>
+                                                <polyline points="2,5 4,7.5 8,2.5" />
+                                            </svg>
+                                        )}
                                     </div>
                                     <span className="text-sm text-stone-600">{cat.name}</span>
                                 </label>
@@ -196,12 +235,16 @@ function FilterPanel({ filters, setFilters, options, onClose }) {
                                     key={c.name}
                                     onClick={() => toggle('colors', c.name.toLowerCase())}
                                     title={c.name}
-                                    className={`relative w-7 h-7 rounded-full border-2 transition-all ${selected ? 'border-stone-900 scale-110' : 'border-transparent hover:border-stone-400'}`}
+                                    className={`relative w-7 h-7 rounded-full border-2 transition-all ${
+                                        selected ? 'border-stone-900 scale-110' : 'border-transparent hover:border-stone-400'
+                                    }`}
                                 >
                                     {isMulti ? (
                                         <span className="absolute inset-0 rounded-full overflow-hidden flex">
-                                            {c.hexAll.map((hex, i) => <span key={i} className="flex-1 h-full" style={{ background: hex }} />)}
-                                        </span>
+                      {c.hexAll.map((hex, i) => (
+                          <span key={i} className="flex-1 h-full" style={{ background: hex }} />
+                      ))}
+                    </span>
                                     ) : (
                                         <span className="absolute inset-0 rounded-full" style={{ background: c.hex }} />
                                     )}
@@ -226,7 +269,9 @@ function FilterPanel({ filters, setFilters, options, onClose }) {
                                     key={size}
                                     onClick={() => toggle('sizes', size)}
                                     className={`px-2.5 h-8 text-xs uppercase border transition-all ${
-                                        selected ? 'bg-stone-900 text-white border-stone-900' : 'border-stone-300 text-stone-600 hover:border-stone-700'
+                                        selected
+                                            ? 'bg-stone-900 text-white border-stone-900'
+                                            : 'border-stone-300 text-stone-600 hover:border-stone-700'
                                     }`}
                                 >
                                     {size}
@@ -242,9 +287,15 @@ function FilterPanel({ filters, setFilters, options, onClose }) {
                 <label className="flex items-center gap-2.5 cursor-pointer group">
                     <div
                         onClick={() => setFilters(prev => ({ ...prev, inStock: !prev.inStock }))}
-                        className={`w-3.5 h-3.5 border transition-colors flex-shrink-0 ${filters.inStock ? 'bg-stone-900 border-stone-900' : 'border-stone-300 group-hover:border-stone-600'}`}
+                        className={`w-3.5 h-3.5 border transition-colors flex-shrink-0 ${
+                            filters.inStock ? 'bg-stone-900 border-stone-900' : 'border-stone-300 group-hover:border-stone-600'
+                        }`}
                     >
-                        {filters.inStock && <svg viewBox="0 0 10 10" className="w-full h-full text-white" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="2,5 4,7.5 8,2.5"/></svg>}
+                        {filters.inStock && (
+                            <svg viewBox="0 0 10 10" className="w-full h-full text-white" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <polyline points="2,5 4,7.5 8,2.5" />
+                            </svg>
+                        )}
                     </div>
                     <span className="text-sm text-stone-600">In stock only</span>
                 </label>
@@ -255,21 +306,20 @@ function FilterPanel({ filters, setFilters, options, onClose }) {
 
 // ─── Sort Dropdown ────────────────────────────────────────────────────────────
 const SORT_OPTIONS = [
-    { value: 'new',        label: 'Newest first' },
-    { value: 'featured',   label: 'Featured' },
-    { value: 'price_asc',  label: 'Price, low to high' },
-    { value: 'price_desc', label: 'Price, high to low' },
-    { value: 'name_asc',   label: 'Alphabetically, A–Z' },
-    { value: 'name_desc',  label: 'Alphabetically, Z–A' },
+    { value: 'new',        label: 'Newest first'},
+    { value: 'featured',   label: 'Featured'},
+    { value: 'price_asc',  label: 'Price, low to high'},
+    { value: 'price_desc', label: 'Price, high to low'},
+    { value: 'name_asc',   label: 'Alphabetically, A–Z'},
+    { value: 'name_desc',  label: 'Alphabetically, Z–A'},
 ]
 
 function SortDropdown({ value, onChange }) {
     const [open, setOpen] = useState(false)
     const current = SORT_OPTIONS.find(o => o.value === value)
-    const ref = useRef(null)
 
     return (
-        <div className="relative" ref={ref}>
+        <div className="relative">
             <button
                 onClick={() => setOpen(v => !v)}
                 className="flex items-center gap-2 text-sm text-stone-700 border border-stone-300 px-3 py-2 hover:border-stone-600 transition-colors"
@@ -280,7 +330,7 @@ function SortDropdown({ value, onChange }) {
             {open && (
                 <>
                     <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-stone-200 shadow-lg z-20">
+                    <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-stone-200 shadow-lg z-20">
                         {SORT_OPTIONS.map(opt => (
                             <button
                                 key={opt.value}
@@ -301,9 +351,9 @@ function SortDropdown({ value, onChange }) {
 
 // ─── Main ShopPage ────────────────────────────────────────────────────────────
 export default function ShopPage() {
-    const [filters,     setFilters]     = useState({ colors: [], sizes: [], categories: [], inStock: false })
-    const [sort,        setSort]        = useState('new')
-    const [page,        setPage]        = useState(0)
+    const [filters,       setFilters]       = useState({ colors: [], sizes: [], categories: [], inStock: false })
+    const [sort,          setSort]          = useState('new')
+    const [page,          setPage]          = useState(0)
     const [mobileFilters, setMobileFilters] = useState(false)
 
     const { products, total, loading, error, pageSize } = useProducts({ filters, sort, page })
@@ -311,7 +361,6 @@ export default function ShopPage() {
 
     const totalPages = Math.ceil(total / pageSize)
 
-    // Reset to page 0 when filters/sort change
     const handleFilterChange = useCallback((updater) => {
         setFilters(updater)
         setPage(0)
@@ -383,11 +432,12 @@ export default function ShopPage() {
 
                         {/* Products grid */}
                         <div className="flex-1 min-w-0">
-
                             {/* Toolbar */}
                             <div className="flex items-center justify-between mb-6">
                                 <p className="text-sm text-stone-500">
-                                    {loading ? 'Loading…' : `${total.toLocaleString()} product${total !== 1 ? 's' : ''}`}
+                                    {loading
+                                        ? 'Loading…'
+                                        : `${total.toLocaleString()} product${total !== 1 ? 's' : ''}`}
                                 </p>
                                 <div className="hidden lg:block">
                                     <SortDropdown value={sort} onChange={handleSortChange} />
@@ -398,50 +448,53 @@ export default function ShopPage() {
                             {activeFilterCount > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-4">
                                     {filters.colors?.map(c => (
-                                        <button key={c} onClick={() => handleFilterChange(prev => ({ ...prev, colors: prev.colors.filter(x => x !== c) }))}
-                                            className="flex items-center gap-1 text-xs border border-stone-300 px-2.5 py-1 hover:bg-stone-50 transition-colors capitalize">
+                                        <button
+                                            key={c}
+                                            onClick={() => handleFilterChange(prev => ({ ...prev, colors: prev.colors.filter(x => x !== c) }))}
+                                            className="flex items-center gap-1 text-xs border border-stone-300 px-2.5 py-1 hover:bg-stone-50 transition-colors capitalize"
+                                        >
                                             {c} <X className="w-3 h-3 text-stone-400" />
                                         </button>
                                     ))}
                                     {filters.sizes?.map(s => (
-                                        <button key={s} onClick={() => handleFilterChange(prev => ({ ...prev, sizes: prev.sizes.filter(x => x !== s) }))}
-                                            className="flex items-center gap-1 text-xs border border-stone-300 px-2.5 py-1 hover:bg-stone-50 transition-colors uppercase">
+                                        <button
+                                            key={s}
+                                            onClick={() => handleFilterChange(prev => ({ ...prev, sizes: prev.sizes.filter(x => x !== s) }))}
+                                            className="flex items-center gap-1 text-xs border border-stone-300 px-2.5 py-1 hover:bg-stone-50 transition-colors uppercase"
+                                        >
                                             {s} <X className="w-3 h-3 text-stone-400" />
                                         </button>
                                     ))}
                                     {filters.categories?.map(c => {
                                         const cat = options.categories.find(o => o.slug === c)
                                         return (
-                                            <button key={c} onClick={() => handleFilterChange(prev => ({ ...prev, categories: prev.categories.filter(x => x !== c) }))}
-                                                className="flex items-center gap-1 text-xs border border-stone-300 px-2.5 py-1 hover:bg-stone-50 transition-colors">
+                                            <button
+                                                key={c}
+                                                onClick={() => handleFilterChange(prev => ({ ...prev, categories: prev.categories.filter(x => x !== c) }))}
+                                                className="flex items-center gap-1 text-xs border border-stone-300 px-2.5 py-1 hover:bg-stone-50 transition-colors"
+                                            >
                                                 {cat?.name ?? c} <X className="w-3 h-3 text-stone-400" />
                                             </button>
                                         )
                                     })}
                                     {filters.inStock && (
-                                        <button onClick={() => handleFilterChange(prev => ({ ...prev, inStock: false }))}
-                                            className="flex items-center gap-1 text-xs border border-stone-300 px-2.5 py-1 hover:bg-stone-50 transition-colors">
+                                        <button
+                                            onClick={() => handleFilterChange(prev => ({ ...prev, inStock: false }))}
+                                            className="flex items-center gap-1 text-xs border border-stone-300 px-2.5 py-1 hover:bg-stone-50 transition-colors"
+                                        >
                                             In stock <X className="w-3 h-3 text-stone-400" />
                                         </button>
                                     )}
                                 </div>
                             )}
 
-                            {error && (
-                                <div className="text-sm text-red-500 mb-4">Error: {error}</div>
-                            )}
+                            {error && <div className="text-sm text-red-500 mb-4">Error: {error}</div>}
 
+                            {/* Grid */}
                             {loading ? (
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                                    {Array.from({ length: 8 }).map((_, i) => (
-                                        <div key={i} className="animate-pulse">
-                                            <div className="aspect-[3/4] bg-stone-100 mb-3" />
-                                            <div className="h-3 bg-stone-100 rounded w-3/4 mb-2" />
-                                            <div className="h-3 bg-stone-100 rounded w-1/2" />
-                                        </div>
-                                    ))}
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+                                    {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
                                 </div>
-
                             ) : products.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-24 gap-4 text-stone-400">
                                     <p className="text-sm">No products match your filters.</p>
@@ -470,7 +523,6 @@ export default function ShopPage() {
                                     </button>
 
                                     {Array.from({ length: Math.min(totalPages, 7) }).map((_, i) => {
-                                        // Smart pagination: show first, last, and pages around current
                                         let pageNum
                                         if (totalPages <= 7) {
                                             pageNum = i

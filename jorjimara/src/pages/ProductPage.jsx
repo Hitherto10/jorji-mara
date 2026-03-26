@@ -404,7 +404,7 @@ export default function ProductPage() {
                             </div>
                         </div>
 
-                        {/* ── Size selector ───────────────────────────────── */}
+                        {/* ── Size selector ── */}
                         {sizes.length > 0 && (
                             <div>
                                 <p className="text-xs uppercase tracking-widest text-stone-500 mb-2.5 font-medium">
@@ -440,7 +440,7 @@ export default function ProductPage() {
                             </div>
                         )}
 
-                        {/* ── Color selector ──────────────────────────────── */}
+                        {/* ── Color selector ── */}
                         {colors.length > 0 && (
                             <div>
                                 <p className="text-xs uppercase tracking-widest text-stone-500 mb-2.5 font-medium">
@@ -490,7 +490,7 @@ export default function ProductPage() {
                             </div>
                         )}
 
-                        {/* ── Custom option (Piece, Leaves, etc.) ─────────── */}
+                        {/* ── Custom option ── */}
                         {optionName && optionValues.length > 0 && (
                             <div>
                                 <p className="text-xs uppercase tracking-widest text-stone-500 mb-2.5 font-medium">
@@ -608,7 +608,7 @@ export default function ProductPage() {
                             Buy it now
                         </button>
 
-                        {/* ── Content sections from DB ─────────────────────── */}
+                        {/* ── Product Care ─────────────────────── */}
                         <div className="mt-2 border-t border-stone-200">
                             {/* Product Description */}
                             {product.description && (

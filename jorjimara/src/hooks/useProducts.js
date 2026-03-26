@@ -20,10 +20,10 @@ export function resolvePrice(variant, product) {
 // filters: { colors: string[], sizes: string[], categories: string[], inStock: bool }
 // sort:    'new' | 'price_asc' | 'price_desc' | 'name_asc' | 'name_desc'
 export function useProducts({ filters = {}, sort = 'new', page = 0 } = {}) {
-    const [products,    setProducts]    = useState([])
-    const [total,       setTotal]       = useState(0)
-    const [loading,     setLoading]     = useState(true)
-    const [error,       setError]       = useState(null)
+    const [products, setProducts] = useState([])
+    const [total, setTotal] = useState(0)
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
 
     // Abort stale requests
     const abortRef = useRef(null)
@@ -188,3 +188,4 @@ export function useFilterOptions() {
 
     return { options, loading }
 }
+
