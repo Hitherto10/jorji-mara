@@ -55,7 +55,7 @@ function ProductCard({ product }) {
                 >
                     {product.photos.map((src, i) => (
                         <div key={i} style={{ width: `${100 / total}%` }} className="h-full shrink-0">
-                            <img loading={"lazy"} src={src} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" />
+                            <img loading="lazy" src={src} alt={`${product.name} ${i + 1}`} className="w-full h-full object-cover" />
                         </div>
                     ))}
                 </div>

@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase.js';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
 import { Handbag, ExternalLink, Plus, Minus } from 'lucide-react';
+import AddToCartButton from '../components/AddToCartButton.jsx'
+import CartDrawer from '../components/cart/CartDrawer.jsx'
 import {motion} from "motion/react";
 
 // ─── Helpers ──
@@ -225,7 +227,7 @@ export default function ProductPage() {
     const { slug } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
-
+    const [cartOpen, setCartOpen] = useState(false)
     const [product, setProduct]     = useState(null);
     const [variants, setVariants]   = useState([]);
     const [allImages, setAllImages] = useState([]);
@@ -235,7 +237,6 @@ export default function ProductPage() {
     // Current selections
     const [selections, setSelections] = useState({ size: null, color: null, optionValue: null });
     const [quantity, setQuantity]     = useState(1);
-    const [addedMsg, setAddedMsg]     = useState(false);
 
     // ── Fetch product data ──
     useEffect(() => {
@@ -311,11 +312,6 @@ export default function ProductPage() {
         setQuantity(1);
     };
 
-    const handleAddToCart = () => {
-        // TODO: wire up to your cart API / local cart state
-        setAddedMsg(true);
-        setTimeout(() => setAddedMsg(false), 2000);
-    };
 
     // ── Content sections from DB ────────────────────────────────────────────
     // product.content_sections is now an object with specific keys:
@@ -590,18 +586,14 @@ export default function ProductPage() {
                             </div>
 
                             {/* Add to cart */}
-                            <button
-                                onClick={handleAddToCart}
-                                disabled={isOutOfStock || !selectedVariant}
-                                className={`flex-1 h-12 flex items-center justify-center gap-2 text-sm tracking-widest uppercase font-medium transition-all ${
-                                    isOutOfStock || !selectedVariant
-                                        ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
-                                        : 'bg-stone-900 text-white hover:bg-stone-700'
-                                }`}
-                            >
-                                <Handbag className="w-4 h-4" />
-                                {addedMsg ? 'Added!' : isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-                            </button>
+                            <AddToCartButton
+                                 product={product}
+                                 variant={selectedVariant}
+                                 imageUrl={displayImages[0]?.url}
+                                 quantity={quantity}
+                                 isOutOfStock={isOutOfStock}
+                                 onCartOpen={() => setCartOpen(true)}
+                            />
                         </div>
 
                         {/* Buy it now */}
@@ -676,6 +668,7 @@ export default function ProductPage() {
                 </div>
             </main>
 
+            <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
             <Footer />
         </>
     );
