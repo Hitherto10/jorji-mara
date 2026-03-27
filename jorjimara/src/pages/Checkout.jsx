@@ -42,7 +42,7 @@ function Field({ label, id, type = 'text', value, onChange, placeholder, require
     return (
         <div className="flex flex-col gap-1">
             <label htmlFor={id} className="text-xs text-stone-500 uppercase tracking-widest font-medium">
-                {label}{required && <span className="text-[#4D0010] ml-0.5">*</span>}
+                {label}{required && <span className="text-[#4d0011] ml-0.5">*</span>}
             </label>
             <input
                 id={id}
@@ -63,7 +63,7 @@ function SelectField({ label, id, value, onChange, options, required, error }) {
     return (
         <div className="flex flex-col gap-1">
             <label htmlFor={id} className="text-xs text-stone-500 uppercase tracking-widest font-medium">
-                {label}{required && <span className="text-[#4D0010] ml-0.5">*</span>}
+                {label}{required && <span className="text-[#4d0011] ml-0.5">*</span>}
             </label>
             <div className="relative">
                 <select
@@ -93,7 +93,7 @@ function OrderSummary({ items, subtotal, collapsed, onToggle }) {
                 onClick={onToggle}
                 className="w-full flex items-center justify-between py-4 border-b border-stone-200 text-sm font-medium text-stone-900"
             >
-        <span className="flex items-center gap-2 text-[#4D0010]">
+        <span className="flex items-center gap-2 text-[#4d0011]">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" />
           </svg>
@@ -263,7 +263,7 @@ function StepInformation({ data, onChange, onNext }) {
 
             <button
                 onClick={handleNext}
-                className="w-full h-12 bg-[#4D0010] hover:bg-[#3a000c] text-white text-sm tracking-widest uppercase font-medium transition-colors"
+                className="w-full h-12 bg-[#4d0011] hover:bg-[#3a000c] text-white text-sm tracking-widest uppercase font-medium transition-colors"
             >
                 Continue to shipping
             </button>
@@ -371,7 +371,7 @@ function StepShipping({ contact, data, onChange, onNext, onBack }) {
                 <button onClick={onBack} className="px-5 h-12 text-xs text-stone-500 hover:text-stone-900 border border-stone-200 hover:border-stone-400 uppercase tracking-widest transition-colors">
                     ← Back
                 </button>
-                <button onClick={handleNext} className="flex-1 h-12 bg-[#4D0010] hover:bg-[#3a000c] text-white text-sm tracking-widest uppercase font-medium transition-colors">
+                <button onClick={handleNext} className="flex-1 h-12 bg-[#4d0011] hover:bg-[#3a000c] text-white text-sm tracking-widest uppercase font-medium transition-colors">
                     Continue to payment
                 </button>
             </div>
@@ -399,6 +399,15 @@ const PAYMENT_METHODS = [
         icon: (
             <div className="w-8 h-8 rounded bg-[#f5a623] flex items-center justify-center">
                 <span className="text-white font-black text-xs">F</span>
+            </div>
+        ),
+    },{
+        id: 'Remita',
+        label: 'Remita',
+        description: 'Cards, bank transfer, and mobile money',
+        icon: (
+            <div className="w-8 h-8 rounded bg-[#f5a623] flex items-center justify-center">
+                <span className="text-white font-black text-xs">R</span>
             </div>
         ),
     },
@@ -445,7 +454,7 @@ function StepPayment({ contact, shipping, subtotal, onBack, onPlace }) {
                         A confirmation will be sent to <strong className="text-stone-700">{contact.email}</strong>
                     </p>
                 </div>
-                <a href="/products" className="mt-4 bg-[#4D0010] text-white px-8 py-3 text-xs uppercase tracking-widest font-medium hover:bg-[#3a000c] transition-colors">
+                <a href="/products" className="mt-4 bg-[#4d0011] text-white px-8 py-3 text-xs uppercase tracking-widest font-medium hover:bg-[#3a000c] transition-colors">
                     Continue shopping
                 </a>
             </div>
@@ -532,7 +541,7 @@ function StepPayment({ contact, shipping, subtotal, onBack, onPlace }) {
                 <button
                     onClick={handlePlace}
                     disabled={placing}
-                    className="flex-1 h-12 bg-[#4D0010] hover:bg-[#3a000c] disabled:bg-stone-400 text-white text-sm tracking-widest uppercase font-medium transition-colors flex items-center justify-center gap-2"
+                    className="flex-1 h-12 bg-[#4d0011] hover:bg-[#3a000c] disabled:bg-stone-400 text-white text-sm tracking-widest uppercase font-medium transition-colors flex items-center justify-center gap-2"
                 >
                     {placing ? (
                         <>

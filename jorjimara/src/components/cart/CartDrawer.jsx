@@ -172,7 +172,7 @@ export default function CartDrawer({ open, onClose }) {
                                 <p className="text-xs text-stone-400">Shipping and taxes calculated at checkout</p>
                                 <button
                                     onClick={() => { onClose(); navigate('/checkout') }}
-                                    className="w-full bg-[#4D0010] hover:bg-[#3a000c] text-white py-4 text-sm tracking-widest uppercase font-medium transition-colors"
+                                    className="w-full bg-[#4d0011] hover:bg-[#3a000c] text-white py-4 text-sm tracking-widest uppercase font-medium transition-colors"
                                 >
                                     Checkout — ₦{fmt(subtotal)}
                                 </button>

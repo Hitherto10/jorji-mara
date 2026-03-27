@@ -66,7 +66,7 @@ export default function HeroSection() {
                     <nav className="hidden md:flex items-center space-x-8 font-[Inter]">
                         <a href="/" className="hover:opacity-60 transition-opacity">Home</a>
                         <a href="/products" className="hover:opacity-60 transition-opacity">Shop</a>
-                        <a href="#contact" className="hover:opacity-60 transition-opacity">Contact</a>
+                        <a href="/contact" className="hover:opacity-60 transition-opacity">Contact</a>
                     </nav>
                     <div className="flex md:hidden items-center">
                         <Menu className="w-6 h-6" onClick={() => setMenuOpen(true)} />
@@ -99,7 +99,7 @@ export default function HeroSection() {
                 <div className="absolute text-white bottom-16 left-1/2 -translate-x-1/2 text-center z-20 flex flex-col items-center space-y-6 whitespace-nowrap">
                     <span className="uppercase tracking-widest text-lg font-[Inter]">New Collection</span>
                     <em className="font-[Newsreader] text-6xl text-wrap italic">Courtside Capsule</em>
-                    <a href="/products" className="bg-white text-black px-10 py-3 text-sm uppercase font-[Inter] font-[450] hover:bg-neutral-200 transition">
+                    <a href="/products" className="bg-white text-black px-10 py-3 text-sm uppercase font-[Bricolage_Grotesque] rounded-sm font-[450] hover:bg-neutral-200 transition">
                         Shop Now
                     </a>
                 </div>

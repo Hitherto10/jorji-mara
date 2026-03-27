@@ -246,7 +246,7 @@ export default function Home() {
                         <div className="mb-4 space-y-2 text-center md:text-left">
                             <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-stone-500">made with care</p>
                             <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-extralight tracking-tight leading-tight">
-                                <span className="text-[#4D0010]">Hi, I'm Jorji</span>
+                                <span className="text-[#4d0011]">Hi, I'm Jorji</span>
                             </h2>
                         </div>
                         <div className="relative grid grid-cols-12 items-start gap-4">
@@ -260,6 +260,7 @@ export default function Home() {
                             </div>
                         </div>
                     </div>
+
                     <div className="w-full md:w-[50%] flex flex-col items-center md:items-start text-center md:text-left gap-8">
                         <div className="space-y-6 text-base md:text-lg leading-[1.8] text-stone-700 max-w-125">
                             <p>The one-woman team behind this little knit and crochet label. Every piece is handmade in small batches using mostly natural fibres with a focus on <span className="font-normal text-stone-900">soft textures, easy silhouettes, and embodying the "made with love" feeling.</span></p>
@@ -267,7 +268,7 @@ export default function Home() {
                             <p>Each item is crafted slowly, thoughtfully, and meant to be worn, lived in, and loved for a long time.</p>
                             <p className="text-xs md:text-sm font-medium italic text-stone-600 tracking-wide mt-10">Thanks so much for stopping by my store, it really means the world that you're here.</p>
                         </div>
-                        <a href="/collections/shop-all" className="inline-block w-full text-center md:w-auto mt-8 bg-[#4D0011] text-white text-xs font-bold uppercase tracking-[0.2em] px-12 py-4 shadow-lg hover:bg-stone-800 transition-colors duration-300">
+                        <a href="/products" className="inline-block w-full text-center md:w-auto mt-8 bg-[#4D0011] text-white text-xs font-bold uppercase tracking-[0.2em] px-12 py-4 shadow-lg hover:bg-stone-800 transition-colors duration-300">
                             Shop here
                         </a>
                     </div>

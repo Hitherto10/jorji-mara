@@ -4,23 +4,16 @@ import { ShoppingBag } from 'lucide-react'
 /**
  * ProductImageCarousel
  *
- * A reusable, performance-optimised image carousel for product cards.
- * Supports:
- *  - Touch/swipe (mobile-friendly)
- *  - Keyboard-accessible arrow buttons
- *  - Dot indicators
- *  - Left/right arrow buttons on hover (desktop)
- *  - Smooth CSS transform transitions (no JS animation loop)
- *  - Lazy image loading
- *
  * Props:
- *  images      — string[]    — array of image URLs
- *  productName — string      — used as alt text base
- *  badge       — string|null — optional badge label (e.g. "New", "Sale")
- *  className   — string      — override wrapper classes
- *  aspectClass — string      — Tailwind aspect ratio class (default: aspect-[3/4])
- *  onQuickAdd  — function    — optional callback for a "Quick Add" overlay button
- *  isOutOfStock— boolean     — show "Sold out" badge and disable quick add
+ *  images       — string[]    — array of image URLs
+ *  productName  — string      — used as alt text base
+ *  badge        — string|null — optional badge label
+ *  className    — string
+ *  aspectClass  — string      — Tailwind aspect ratio class (default: aspect-[3/4])
+ *  onQuickView  — function    — preferred: fires the QuickView modal
+ *  onQuickAdd   — function    — legacy fallback
+ *  isOutOfStock — boolean
+ *  showQuickAdd — boolean
  */
 export default function ProductImageCarousel({
                                                  images = [],
@@ -28,13 +21,14 @@ export default function ProductImageCarousel({
                                                  badge = null,
                                                  className = '',
                                                  aspectClass = 'aspect-[3/4]',
+                                                 onQuickView,
                                                  onQuickAdd,
                                                  isOutOfStock = false,
                                                  showQuickAdd = true,
                                              }) {
-    const [idx, setIdx]       = useState(0)
-    const touchStartX         = useRef(null)
-    const total               = images.length
+    const [idx, setIdx] = useState(0)
+    const touchStartX   = useRef(null)
+    const total         = images.length
 
     const prev = useCallback((e) => {
         e?.stopPropagation()
@@ -46,16 +40,16 @@ export default function ProductImageCarousel({
         setIdx(i => (i + 1) % total)
     }, [total])
 
-    const handleTouchStart = (e) => {
-        touchStartX.current = e.touches[0].clientX
-    }
-
-    const handleTouchEnd = (e) => {
+    const onTouchStart = e => { touchStartX.current = e.touches[0].clientX }
+    const onTouchEnd   = e => {
         if (touchStartX.current === null) return
         const delta = touchStartX.current - e.changedTouches[0].clientX
         if (Math.abs(delta) > 40) delta > 0 ? next() : prev()
         touchStartX.current = null
     }
+
+    // QuickView wins over legacy QuickAdd
+    const quickHandler = onQuickView ?? onQuickAdd
 
     if (!images.length) {
         return (
@@ -67,6 +61,7 @@ export default function ProductImageCarousel({
 
     return (
         <div className={`group relative ${aspectClass} overflow-hidden bg-stone-100 select-none ${className}`}>
+
             {/* ── Sliding strip ── */}
             <div
                 className="flex h-full will-change-transform transition-transform duration-300 ease-in-out"
@@ -74,8 +69,8 @@ export default function ProductImageCarousel({
                     width: `${total * 100}%`,
                     transform: `translateX(-${(idx / total) * 100}%)`,
                 }}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
+                onTouchStart={onTouchStart}
+                onTouchEnd={onTouchEnd}
             >
                 {images.map((src, i) => (
                     <div
@@ -89,6 +84,7 @@ export default function ProductImageCarousel({
                             className="w-full h-full object-cover"
                             loading={i === 0 ? 'eager' : 'lazy'}
                             decoding="async"
+                            draggable={false}
                         />
                     </div>
                 ))}
@@ -108,23 +104,22 @@ export default function ProductImageCarousel({
                 )}
             </div>
 
-            {/* ── Desktop hover: arrows + dots ── */}
+            {/* ── Desktop: side arrows centred ── */}
             {total > 1 && (
-                <div className="absolute inset-x-0 top-1/2 flex items-center justify-between px-3 pb-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
+                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-between px-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10 pointer-events-none">
                     <button
                         onClick={prev}
                         aria-label="Previous image"
-                        className="w-7 h-7 bg-white/90 hover:bg-white flex items-center justify-center transition-colors shadow-sm"
+                        className="pointer-events-auto w-7 h-7 bg-white/90 hover:bg-white flex items-center justify-center transition-colors shadow-sm"
                     >
                         <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3 h-3">
                             <polyline points="7.5,2 3.5,6 7.5,10" />
                         </svg>
                     </button>
-
                     <button
                         onClick={next}
                         aria-label="Next image"
-                        className="w-7 h-7 bg-white/90 hover:bg-white flex items-center justify-center transition-colors shadow-sm"
+                        className="pointer-events-auto w-7 h-7 bg-white/90 hover:bg-white flex items-center justify-center transition-colors shadow-sm"
                     >
                         <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-3 h-3">
                             <polyline points="4.5,2 8.5,6 4.5,10" />
@@ -133,7 +128,7 @@ export default function ProductImageCarousel({
                 </div>
             )}
 
-            {/* ── Mobile-only dots ── */}
+            {/* ── Mobile dots (always visible) ── */}
             {total > 1 && (
                 <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 lg:hidden z-10 pointer-events-none">
                     {images.map((_, i) => (
@@ -147,14 +142,17 @@ export default function ProductImageCarousel({
                 </div>
             )}
 
-            {/* ── Quick Add overlay ── */}
-            {showQuickAdd && onQuickAdd && (
+            {/* ── Quick Add Button (On Hover) ── */}
+            {showQuickAdd && quickHandler && (
                 <div
                     className="absolute bottom-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-in-out"
                     onClick={(e) => e.stopPropagation()}
                 >
                     <button
-                        onClick={onQuickAdd}
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            if (!isOutOfStock) quickHandler(e)
+                        }}
                         disabled={isOutOfStock}
                         className={`
                             rounded-full group/btn flex items-center justify-center

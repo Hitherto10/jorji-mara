@@ -118,8 +118,8 @@ const collectionManifest = {
 
 export function useCollections() {
     const [collections, setCollections] = useState(() => cache.get('home:collections') ?? [])
-    const [loading,     setLoading]     = useState(!cache.get('home:collections'))
-    const [error,       setError]       = useState(null)
+    const [loading, setLoading] = useState(!cache.get('home:collections'))
+    const [error, setError] = useState(null)
 
     useEffect(() => {
         const cached = cache.get('home:collections')

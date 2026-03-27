@@ -54,7 +54,7 @@ export default function CollectionsShowcase() {
                       }`}>
                         {col.number}
                       </span>
-                                            <span className={`font-serif text-2xl md:text-3xl font-light tracking-tight transition-colors duration-200 ${
+                                            <span className={`font-[Bricolage_Grotesque] text-2xl md:text-3xl font-light tracking-tight transition-colors duration-200 ${
                                                 i === activeIdx
                                                     ? 'text-stone-900 italic'
                                                     : 'text-stone-400 group-hover:text-stone-700 group-hover:italic'

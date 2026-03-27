@@ -511,7 +511,7 @@ export default function ProductPage() {
                                                 onClick={() => select('optionValue', val)}
                                                 className={`px-4 h-9 text-xs tracking-wide border transition-all rounded-sm ${
                                                     selected
-                                                        ? 'bg-[#4D0010] text-white border-[#4D0010]'
+                                                        ? 'bg-[#4d0011] text-white border-[#4d0011]'
                                                         : available
                                                             ? 'border-stone-300 text-stone-700 hover:border-stone-700'
                                                             : 'border-stone-200 text-stone-300 cursor-not-allowed line-through'
@@ -602,7 +602,7 @@ export default function ProductPage() {
                             className={`w-full h-12 text-sm tracking-widest uppercase font-medium transition-all ${
                                 isOutOfStock || !selectedVariant
                                     ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
-                                    : 'bg-[#4D0010] text-white hover:bg-[#3a000c]'
+                                    : 'bg-[#4d0011] text-white hover:bg-[#3a000c]'
                             }`}
                         >
                             Buy it now

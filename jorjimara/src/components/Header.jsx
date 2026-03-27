@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom'
 const navItems = [
     { label: 'Home',    href: '/',         hasChildren: false },
     { label: 'Shop',    href: '/products', hasChildren: false },
-    { label: 'Contact', href: '#contact',  hasChildren: false },
+    { label: 'Contact', href: '/contact',  hasChildren: false },
 ]
 
 const socialIcons = [
@@ -60,7 +60,7 @@ export function CartIcon({ onClick, className = 'w-5 h-5' }) {
         <button onClick={onClick} className="relative cursor-pointer hover:opacity-60 transition-opacity">
             <Handbag className={className} />
             {totalItems > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#4D0010] text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#4d0011] text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
                     {totalItems > 9 ? '9+' : totalItems}
                 </span>
             )}
@@ -80,7 +80,7 @@ export default function Header() {
                 <nav className="hidden md:flex items-center space-x-8">
                     <a href="/" className="hover:opacity-60 transition-opacity text-sm">Home</a>
                     <a href="/products" className="hover:opacity-60 transition-opacity text-sm">Shop</a>
-                    <a href="#contact" className="hover:opacity-60 transition-opacity text-sm">Contact</a>
+                    <a href="/contact" className="hover:opacity-60 transition-opacity text-sm">Contact</a>
                 </nav>
 
                 {/* MOBILE hamburger */}
@@ -95,7 +95,7 @@ export default function Header() {
 
                 {/* RIGHT NAV */}
                 <nav className="flex items-center justify-end space-x-4 md:space-x-5">
-                    <Search className="w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity hidden md:block" />
+                    <Search className="w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity " />
                     <CartIcon onClick={() => setCartOpen(true)} />
                     <UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />
                 </nav>
