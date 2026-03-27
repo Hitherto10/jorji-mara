@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import { Images } from './img.js'
-import { Handbag, Search, UserRound, X, Plus, Menu } from 'lucide-react'
+import { Search, UserRound, X, Plus, Menu } from 'lucide-react'
+import { Handbag } from 'lucide-react'
 import { motion, AnimatePresence } from 'motion/react'
 import { useCart } from '../context/CartContext.jsx'
 import CartDrawer from './cart/CartDrawer.jsx'
+import SearchOverlay from './SearchOverlay.jsx'
 import { useNavigate } from 'react-router-dom'
 
 const navItems = [
@@ -71,31 +73,52 @@ export function CartIcon({ onClick, className = 'w-5 h-5' }) {
 export default function Header() {
     const [menuOpen,    setMenuOpen]    = useState(false)
     const [cartOpen,    setCartOpen]    = useState(false)
+    const [searchOpen,  setSearchOpen]  = useState(false)
     const navigate = useNavigate()
 
     return (
         <>
             <div className="z-90 grid grid-cols-3 text-black font-[Bricolage_Grotesque] items-center px-10 lg:px-40 py-4">
-                {/* LEFT NAV */}
+                {/* LEFT NAV — desktop */}
                 <nav className="hidden md:flex items-center space-x-8">
-                    <a href="/" className="hover:opacity-60 transition-opacity text-sm">Home</a>
+                    <a href="/"         className="hover:opacity-60 transition-opacity text-sm">Home</a>
                     <a href="/products" className="hover:opacity-60 transition-opacity text-sm">Shop</a>
-                    <a href="/contact" className="hover:opacity-60 transition-opacity text-sm">Contact</a>
+                    <a href="/contact"  className="hover:opacity-60 transition-opacity text-sm">Contact</a>
                 </nav>
 
-                {/* MOBILE hamburger */}
-                <div className="flex md:hidden items-center">
+                {/* LEFT — mobile: hamburger + search */}
+                <div className="flex md:hidden items-center gap-3">
                     <Menu onClick={() => setMenuOpen(true)} className="cursor-pointer" />
+                    <button
+                        onClick={() => setSearchOpen(true)}
+                        className="hover:opacity-60 transition-opacity"
+                        aria-label="Open search"
+                    >
+                        <Search className="w-5 h-5" />
+                    </button>
                 </div>
 
                 {/* CENTER LOGO */}
                 <div className="flex justify-center">
-                    <img src={Images.main_logo} alt="Jorji Mara" className="h-8 w-auto object-contain cursor-pointer" onClick={() => navigate('/')} />
+                    <img
+                        src={Images.main_logo}
+                        alt="Jorji Mara"
+                        className="h-8 w-auto object-contain cursor-pointer"
+                        onClick={() => navigate('/')}
+                    />
                 </div>
 
                 {/* RIGHT NAV */}
                 <nav className="flex items-center justify-end space-x-4 md:space-x-5">
-                    <Search className="w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity " />
+                    {/* Desktop search */}
+                    <button
+                        onClick={() => setSearchOpen(true)}
+                        className="hidden md:block hover:opacity-60 transition-opacity"
+                        aria-label="Open search"
+                    >
+                        <Search className="w-5 h-5 cursor-pointer" />
+                    </button>
+
                     <CartIcon onClick={() => setCartOpen(true)} />
                     <UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />
                 </nav>
@@ -103,6 +126,9 @@ export default function Header() {
 
             <HeaderDrawer menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
             <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+
+            {/* Search overlay — lives in Header so it overlays any page */}
+            <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
         </>
     )
 }

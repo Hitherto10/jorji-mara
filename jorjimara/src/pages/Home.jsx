@@ -2,7 +2,7 @@ import React, {useState, useRef, useEffect} from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Images } from '../components/img.js'
 import CollectionsShowcase from './CollectionsShowcase.jsx'
-import HeroSection from './HeroSection.jsx'
+import HeroSection from '../components/HeroSection.jsx'
 import Footer from '../components/Footer.jsx'
 import {fetchNewProducts} from "../components/content.js";
 import {SkeletonCard} from "../components/ProductSkeleton.jsx";

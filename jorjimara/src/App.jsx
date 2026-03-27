@@ -10,18 +10,17 @@ const ShopPage = lazy(() => import('./pages/ShopPage.jsx'))
 const ProductPage = lazy(() => import('./pages/ProductPage.jsx'))
 const Checkout = lazy(() => import('./pages/Checkout.jsx'))
 const Contact = lazy(() => import('./pages/Contact.jsx'))
-const ShippingAndReturns = lazy(() => import('./pages/ShippingReturns.jsx'))
 const SizeChart = lazy(() => import('./pages/SizeChart.jsx'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy.jsx'))
+const ShippingAndReturns = lazy(() => import('./pages/ShippingReturns.jsx'))
+const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage.jsx'))
 
 function App() {
     return (
         <CartProvider>
             <ToastProvider>
                 <QuickViewProvider>
-                    {/* Modal lives at the root so it can overlay any page */}
                     <QuickViewModal />
-
                     <Suspense fallback={<div className="min-h-screen bg-white" />}>
                         <Routes>
                             <Route path="/" element={<Home />} />
@@ -32,6 +31,7 @@ function App() {
                             <Route path="/size-chart" element={<SizeChart />} />
                             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                             <Route path="/shipping-and-returns" element={<ShippingAndReturns />} />
+                            <Route path="/search" element={<SearchResultsPage />} />
                         </Routes>
                     </Suspense>
                 </QuickViewProvider>

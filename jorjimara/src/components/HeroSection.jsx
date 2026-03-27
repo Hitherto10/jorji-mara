@@ -32,18 +32,20 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Full updated HeroSection.jsx below:
 
-import { Images } from "../components/img.js";
+import { Images } from "./img.js";
 import React, { useRef } from "react";
 import { motion, useScroll, useTransform, useMotionValueEvent } from "motion/react";
 import { useState } from "react";
-import Header, { HeaderDrawer, CartIcon } from "../components/Header.jsx";
-import CartDrawer from "../components/cart/CartDrawer.jsx";
+import Header, { HeaderDrawer, CartIcon } from "./Header.jsx";
+import CartDrawer from "./cart/CartDrawer.jsx";
+import SearchOverlay from './SearchOverlay.jsx'
 import { Menu, Search, UserRound } from "lucide-react";
 
 export default function HeroSection() {
     const [menuOpen,  setMenuOpen]  = useState(false);
     const [showHeader, setShowHeader] = useState(false);
     const [cartOpen,  setCartOpen]  = useState(false);
+    const [searchOpen,  setSearchOpen]  = useState(false)
 
     const { scrollY } = useScroll();
 
@@ -64,7 +66,7 @@ export default function HeroSection() {
 
                 <div className="z-50 absolute flex items-center justify-between w-full px-10 lg:px-40 py-4 text-white">
                     <nav className="hidden md:flex items-center space-x-8 font-[Inter]">
-                        <a href="/" className="hover:opacity-60 transition-opacity">Home</a>
+                        <a href="/jorjimara/public" className="hover:opacity-60 transition-opacity">Home</a>
                         <a href="/products" className="hover:opacity-60 transition-opacity">Shop</a>
                         <a href="/contact" className="hover:opacity-60 transition-opacity">Contact</a>
                     </nav>
@@ -73,7 +75,13 @@ export default function HeroSection() {
                     </div>
                     <nav className="flex items-center space-x-8 font-[Inter]">
                         <div className="flex items-center space-x-5">
-                            <Search className="w-6 h-6 cursor-pointer hover:opacity-60 transition-opacity" />
+                            <button
+                                onClick={() => setSearchOpen(true)}
+                                className="hover:opacity-60 transition-opacity"
+                                aria-label="Open search"
+                            >
+                                <Search className="w-5 h-5" />
+                            </button>
                             <CartIcon onClick={() => setCartOpen(true)} className="w-6 h-6" />
                             <UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />
                         </div>
@@ -106,6 +114,8 @@ export default function HeroSection() {
 
                 <HeaderDrawer menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
                 <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+                <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
+
             </section>
         </div>
     );
