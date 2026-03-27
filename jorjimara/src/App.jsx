@@ -4,6 +4,7 @@ import { CartProvider } from './context/CartContext.jsx'
 import { ToastProvider } from './components/Toast.jsx'
 import { QuickViewProvider } from './context/QuickViewContext.jsx'
 import QuickViewModal from './components/QuickViewModal.jsx'
+import ScrollHorizontal from "./components/ScrollPrac.jsx";
 
 const Home = lazy(() => import('./pages/Home.jsx'))
 const ShopPage = lazy(() => import('./pages/ShopPage.jsx'))
@@ -32,6 +33,7 @@ function App() {
                             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                             <Route path="/shipping-and-returns" element={<ShippingAndReturns />} />
                             <Route path="/search" element={<SearchResultsPage />} />
+                            <Route path="/ScrollHorizontal" element={<ScrollHorizontal />} />
                         </Routes>
                     </Suspense>
                 </QuickViewProvider>

@@ -139,21 +139,21 @@ function SummaryItems({ items, subtotal, discountCode, onDiscountApply }) {
             </ul>
 
             {/* Discount code */}
-            <div className="flex gap-2">
-                <input
-                    type="text"
-                    value={code}
-                    onChange={e => setCode(e.target.value.toUpperCase())}
-                    placeholder="Discount code or gift card"
-                    className="flex-1 h-10 border border-stone-300 px-3 text-sm outline-none focus:border-stone-900 transition-colors placeholder:text-stone-300"
-                />
-                <button
-                    onClick={() => onDiscountApply?.(code)}
-                    className="px-4 h-10 text-xs uppercase tracking-widest font-medium border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors whitespace-nowrap"
-                >
-                    Apply
-                </button>
-            </div>
+            {/*<div className="flex gap-2">*/}
+            {/*    <input*/}
+            {/*        type="text"*/}
+            {/*        value={code}*/}
+            {/*        onChange={e => setCode(e.target.value.toUpperCase())}*/}
+            {/*        placeholder="Discount code or gift card"*/}
+            {/*        className="flex-1 h-10 border border-stone-300 px-3 text-sm outline-none focus:border-stone-900 transition-colors placeholder:text-stone-300"*/}
+            {/*    />*/}
+            {/*    <button*/}
+            {/*        onClick={() => onDiscountApply?.(code)}*/}
+            {/*        className="px-4 h-10 text-xs uppercase tracking-widest font-medium border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors whitespace-nowrap"*/}
+            {/*    >*/}
+            {/*        Apply*/}
+            {/*    </button>*/}
+            {/*</div>*/}
 
             {/* Totals */}
             <div className="flex flex-col gap-2 pt-2 border-t border-stone-100">
@@ -250,16 +250,6 @@ function StepInformation({ data, onChange, onNext }) {
                 required
                 error={errors.email}
             />
-
-            <label className="flex items-center gap-2.5 cursor-pointer">
-                <input
-                    type="checkbox"
-                    checked={data.marketing}
-                    onChange={e => onChange('marketing', e.target.checked)}
-                    className="w-4 h-4 accent-stone-900"
-                />
-                <span className="text-xs text-stone-600">Email me with news and offers</span>
-            </label>
 
             <button
                 onClick={handleNext}
@@ -431,7 +421,7 @@ function StepPayment({ contact, shipping, subtotal, onBack, onPlace }) {
     const [placed,   setPlaced]   = useState(false)
 
     const shippingPrice = shipping.shippingPrice ?? 0
-    const total         = subtotal + shippingPrice
+    const total = subtotal + shippingPrice
 
     const handlePlace = async () => {
         setPlacing(true)
@@ -473,8 +463,8 @@ function StepPayment({ contact, shipping, subtotal, onBack, onPlace }) {
                 <div className="flex items-center justify-between px-4 py-3 gap-4">
                     <span className="text-stone-400 text-xs uppercase tracking-widest shrink-0">Ship to</span>
                     <span className="text-stone-700 flex-1 truncate">
-            {[shipping.address, shipping.city, shipping.state].filter(Boolean).join(', ')}
-          </span>
+                        {[shipping.address, shipping.city, shipping.state].filter(Boolean).join(', ')}
+                    </span>
                     <button onClick={() => onBack(1)} className="text-xs text-stone-500 underline hover:text-stone-900 shrink-0">Change</button>
                 </div>
                 <div className="flex items-center justify-between px-4 py-3 gap-4">
@@ -604,17 +594,17 @@ export default function Checkout() {
     return (
         <div className="min-h-screen bg-white font-[Bricolage_Grotesque]">
             {/* ── Header ── */}
-            <header className="border-b border-stone-100 px-4 md:px-8 py-4 flex items-center justify-between">
+            <header className="border-b bg-white z-50 sticky top-0 border-stone-100 px-4 md:px-8 py-4 flex items-center justify-between">
                 <img
                     src={Images.main_logo}
                     alt="Jorji Mara"
-                    className="h-7 w-auto object-contain cursor-pointer"
+                    className="h-7 w-auto object-contain hidden md:block cursor-pointer"
                     onClick={() => navigate('/')}
                 />
                 <StepBar current={step} />
                 <div className="w-24 flex justify-end">
-                    <button onClick={() => navigate('/products')} className="text-stone-400 hover:text-stone-700 transition-colors">
-                        <X className="w-5 h-5" />
+                    <button onClick={() => navigate('/products')} className="text-stone-400 flex hover:text-stone-700 transition-colors text-nowrap items-center gap-2">
+                        <span className={`hidden md:block`}>Exit Checkout </span><X className="w-5 h-5" />
                     </button>
                 </div>
             </header>
@@ -672,10 +662,8 @@ export default function Checkout() {
 
                     {/* Footer links */}
                     <div className="mt-10 flex flex-wrap gap-4 text-xs text-stone-400">
-                        <a href="#" className="hover:text-stone-700 transition-colors">Refund policy</a>
-                        <a href="#" className="hover:text-stone-700 transition-colors">Shipping policy</a>
-                        <a href="#" className="hover:text-stone-700 transition-colors">Privacy policy</a>
-                        <a href="#" className="hover:text-stone-700 transition-colors">Terms of service</a>
+                        <a href="/shipping-and-returns" className="hover:text-stone-700 transition-colors">Shipping & Returns</a>
+                        <a href="/privacy-policy" className="hover:text-stone-700 transition-colors">Privacy policy</a>
                     </div>
                 </div>
 
@@ -686,22 +674,6 @@ export default function Checkout() {
                             Order summary ({items.length} {items.length === 1 ? 'item' : 'items'})
                         </h3>
                         <SummaryItems items={items} subtotal={subtotal} />
-
-                        {/* Trust badges */}
-                        <div className="mt-6 pt-6 border-t border-stone-100 flex flex-col gap-3">
-                            <div className="flex items-center gap-2 text-xs text-stone-500">
-                                <Lock className="w-4 h-4 text-stone-400 shrink-0" />
-                                Secure checkout — 128-bit SSL encryption
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-stone-500">
-                                <Truck className="w-4 h-4 text-stone-400 shrink-0" />
-                                Free shipping on orders over ₦50,000
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-stone-500">
-                                <ShieldCheck className="w-4 h-4 text-stone-400 shrink-0" />
-                                Easy returns within 14 days
-                            </div>
-                        </div>
                     </div>
                 </aside>
             </div>
