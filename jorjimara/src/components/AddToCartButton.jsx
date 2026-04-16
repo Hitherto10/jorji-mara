@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useCart } from '../context/CartContext.jsx'
 import { useToast } from './Toast.jsx'
 import { Handbag } from 'lucide-react'
-import { buildVariantLabel, resolvePrice } from '../hooks/useProducts.js'
 
 // Props:
 //   product     — { id, name, slug, price }
@@ -31,7 +30,7 @@ export default function AddToCartButton({
     const toast = useToast()
     const [pulse, setPulse] = useState(false)
 
-    const inCart   = variant ? isInCart(variant.id) : false
+    const inCart = variant ? isInCart(variant.id) : false
     const disabled = isOutOfStock || !variant
 
     const handle = (e) => {
@@ -39,15 +38,15 @@ export default function AddToCartButton({
         if (disabled) return
 
         addItem({
-            variantId:    variant.id,
-            productId:    product.id,
-            productName:  product.name,
-            slug:         product.slug,
-            variantLabel: buildVariantLabel(variant),
-            price:        resolvePrice(variant, product),
-            imageUrl:     imageUrl ?? null,
+            variantId: variant.id,
+            productId: product.id,
+            productName: product.name,
+            slug: product.slug,
+            // variantLabel: buildVariantLabel(variant),
+            price: variant?.price ?? product?.price ?? 0,
+            imageUrl: imageUrl ?? null,
             quantity,
-            stock:        variant.stock ?? 99,
+            stock: variant.stock ?? 99,
         })
 
         setPulse(true)

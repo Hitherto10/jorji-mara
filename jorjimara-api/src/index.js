@@ -1,45 +1,51 @@
-import dotenv from 'dotenv';
-dotenv.config();
+// src/index.js
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import catalogRoutes from './routes/catalog.js';
+import productRoutes from './routes/products.js';
+import checkoutRoutes from './routes/checkout.js';
+import contactRoutes from './routes/contact.js';
+import webhookRoutes from './routes/webhooks.js';
+import generate from "./routes/remita/generateRRR";
+import { rateLimitMiddleware } from './lib/ratelimit.js';
 
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-// import webhooks from './routes/webhooks.js';
-import products from './routes/products.js';
-
-import limiter from './middleware/rateLimiter.js';
-
-
-const app = express()
-app.use(helmet())
-
-app.use(cors({ origin: process.env.FRONTEND_URL }))
-
-app.use(morgan('dev'))
+const app = new Hono();
 
 
-// Global limiter — runs before EVERY route, no exceptions
-app.use(limiter.globalLimiter);
-
-// Webhooks need raw body — mount BEFORE express.json()
-// app.use('/api/webhooks', webhooks)
-app.use(express.json())
-
-// Each route gets a specific limiter as its first middleware
-// app.use('/api/auth', authLimiter, require('./routes/auth'))
-app.use('/api', limiter.productReadLimiter, products)
-// app.use('/api/categories', productReadLimiter, require('./routes/categories'))
-// app.use('/api/collections', productReadLimiter, require('./routes/collections'))
-// app.use('/api/cart', writeLimiter, require('./routes/cart'))
-// app.use('/api/orders', writeLimiter, require('./routes/orders'))
-// app.use('/api/reviews', writeLimiter, require('./routes/reviews'))
-// app.use('/api/users', writeLimiter, require('./routes/users'))
-// app.use('/api/payments', paymentLimiter, require('./routes/payments'))
-// app.use('/api/newsletter', newsletterLimiter, require('./routes/newsletter'))
-// app.use('/api/admin', adminLimiter, require('./routes/admin'))
+// CORS
+app.use("*", cors({
+	origin: (origin, c) => {
+		const allowed = [
+			c.env.FRONTEND_ORIGIN,
+			"https://jorjimara.com",
+			"http://localhost:5173",
+		];
+		return allowed.includes(origin) ? origin : null;
+	},
+	allowMethods: ['GET', 'POST', 'OPTIONS'],
+	allowHeaders: ['Content-Type', 'Authorization'],
+	maxAge: 86400,
+}));
 
 
-const PORT = process.env.SERVER_PORT;
-console.log(PORT)
-app.listen(PORT, () => console.log(`Server Listening at port: ${PORT}`));
+// Rate limiting (applied to all /api/* routes)
+app.use("/api/*", rateLimitMiddleware);
+
+
+// Route groups
+app.route("/api/catalog", catalogRoutes);
+app.route("/api/products", productRoutes);
+app.route("/api/checkout", checkoutRoutes);
+app.route("/api/contact", contactRoutes);
+app.route("/api/webhooks", webhookRoutes);
+app.route("/api/generate", generate);
+
+
+app.get("/health", (c) => c.json({ status: "ok", ts: Date.now() })); // Health check
+app.notFound((c) => c.json({ error: "Not found" }, 404)); // 404
+app.onError((err, c) => {
+	console.error("[Worker Error]", err);
+	return c.json({ error: "Internal server error" }, 500);
+});
+
+export default app;

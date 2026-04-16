@@ -1,15 +1,15 @@
-import React, {useState, useRef, useEffect} from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Images } from '../components/img.js'
 import CollectionsShowcase from './CollectionsShowcase.jsx'
 import HeroSection from '../components/HeroSection.jsx'
 import Footer from '../components/Footer.jsx'
-import {fetchNewProducts} from "../components/content.js";
-import {SkeletonCard} from "../components/ProductSkeleton.jsx";
+import { SkeletonCard } from "../components/ProductSkeleton.jsx";
 import { useQuickView } from '../context/QuickViewContext.jsx'
 import ScrollHorizontal from "../components/ScrollPrac.jsx";
+import { apiGet } from '../lib/api.js'
 
-// ─── ProductCard (homepage version — uses carousel) ──
+// ─── ProductCard (homepage version — unchanged) ───────────────────────────────
 function ProductCard({ product }) {
     const navigate = useNavigate();
     const { openQuickView } = useQuickView();
@@ -34,8 +34,6 @@ function ProductCard({ product }) {
     };
 
     const handleCardClick = () => {
-        // Navigate to /products/{slug}?variant={firstVariantId}
-        // product.slug comes from the database, product.firstVariantId is the first active variant
         const url = product.firstVariantId
             ? `/products/${product.slug}?variant=${product.firstVariantId}`
             : `/products/${product.slug}`;
@@ -126,32 +124,39 @@ function ProductCard({ product }) {
     );
 }
 
-// ─── Skeleton card ──
-
-
-// ─── Home ──
+// ─── Home ─────────────────────────────────────────────────────────────────────
 export default function Home() {
     const [newProducts, setNewProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
 
     useEffect(() => {
-        const load = async () => {
-            try {
-                const data = await fetchNewProducts();
-                setNewProducts(data);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
+        let cancelled = false;
 
-        load();
+        apiGet('/api/catalog/new-arrivals')
+            .then(({ data }) => {
+                if (!cancelled) {
+                    setNewProducts(data ?? []);
+                    setLoading(false);
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    console.error('[Home] Failed to load new arrivals:', err);
+                    setError(err.message);
+                    setLoading(false);
+                }
+            });
+
+        return () => { cancelled = true; };
     }, []);
 
     return (
         <>
-            <HeroSection/>
+            <div className="relative">
+                <HeroSection />
+            </div>
 
             {/* New Arrivals */}
             <section className="mx-auto font-[Bricolage_Grotesque] py-12 px-4 md:px-12 lg:px-28">
@@ -161,18 +166,25 @@ export default function Home() {
                     </h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                    {loading
-                        ? Array.from({length: 4}).map((_, i) => (
+                    {loading ? (
+                        // Skeleton cards shown while the API call is in flight
+                        Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="bg-white">
-                                <SkeletonCard/>
+                                <SkeletonCard />
                             </div>
                         ))
-                        : newProducts.map(product => (
+                    ) : error ? (
+                        // Graceful error state — keeps the page usable
+                        <p className="col-span-4 text-sm text-stone-400 text-center py-8">
+                            Could not load new arrivals right now.
+                        </p>
+                    ) : (
+                        newProducts.map(product => (
                             <div key={product.id} className="bg-white">
-                                <ProductCard product={product}/>
+                                <ProductCard product={product} />
                             </div>
                         ))
-                    }
+                    )}
                 </div>
             </section>
 
@@ -194,13 +206,13 @@ export default function Home() {
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                 loading="lazy"
                             />
-                            <div className="absolute inset-0 bg-black/10"/>
+                            <div className="absolute inset-0 bg-black/10" />
                         </div>
                         <div className="relative z-10 p-6 text-white">
                             <p className="italic text-sm md:text-base mb-1">Limited time</p>
                             <h2 className="text-3xl md:text-4xl font-bold mb-4">The Original.</h2>
                             <a href="/collections/apparel"
-                               className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
+                                className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
                                 View variations
                             </a>
                         </div>
@@ -215,12 +227,12 @@ export default function Home() {
                                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                                 loading="lazy"
                             />
-                            <div className="absolute inset-0 bg-black/10"/>
+                            <div className="absolute inset-0 bg-black/10" />
                         </div>
                         <div className="relative z-10 p-8 text-white">
-                            <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Now stocking<br/>J~M</h2>
+                            <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Now stocking<br />J~M</h2>
                             <a href="/collections/naked-and-famous"
-                               className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
+                                className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
                                 Shop JorjiMara
                             </a>
                         </div>
@@ -235,22 +247,22 @@ export default function Home() {
                                 loading="lazy"
                                 alt="Your Style"
                             />
-                            <div className="absolute inset-0 bg-black/20"/>
+                            <div className="absolute inset-0 bg-black/20" />
                         </div>
                         <div className="relative z-10 p-8 text-white">
-                            <h2 className="text-3xl md:text-4xl font-bold mb-1">Your Style. <br/> Your Happy Place</h2>
+                            <h2 className="text-3xl md:text-4xl font-bold mb-1">Your Style. <br /> Your Happy Place</h2>
                             <p className="text-sm md:text-base mb-4 opacity-90">Cozy, Comfortable, Luxury.</p>
                         </div>
                     </div>
                 </div>
             </section>
 
+            {/* CollectionsShowcase — driven by useCollections() inside the component.
+                Update useHomeData.js as per Section 7.2 of the migration guide
+                and this section will automatically pull from the Worker too. */}
+            <CollectionsShowcase />
 
-
-            {/* CollectionsShowcase now uses the cached hook internally */}
-            <CollectionsShowcase/>
-
-            {/*Intro section*/}
+            {/* Intro section */}
             <section
                 className="font-[Bricolage_Grotesque] text-stone-900 mx-auto max-w-7xl px-6 my-16 md:my-24 font-light antialiased">
                 <div className="flex flex-col md:flex-row items-center justify-between gap-12 md:gap-16 lg:gap-24">
@@ -269,7 +281,7 @@ export default function Home() {
                                     alt="Jorji"
                                     className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent"/>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
                             </div>
                         </div>
                     </div>
@@ -289,22 +301,19 @@ export default function Home() {
                                 so much for stopping by my store, it really means the world that you're here.</p>
                         </div>
                         <a href="/products"
-                           className="inline-block w-full text-center md:w-auto mt-8 bg-[#4D0011] text-white text-xs font-bold uppercase tracking-[0.2em] px-12 py-4 shadow-lg hover:bg-stone-800 transition-colors duration-300">
+                            className="inline-block w-full text-center md:w-auto mt-8 bg-[#4D0011] text-white text-xs font-bold uppercase tracking-[0.2em] px-12 py-4 shadow-lg hover:bg-stone-800 transition-colors duration-300">
                             Shop here
                         </a>
                     </div>
                 </div>
             </section>
 
-            {/*Instagram Highlight Section*/}
+            {/* instagram Highlight Section */}
             <section>
-
-                <ScrollHorizontal/>
+                <ScrollHorizontal />
             </section>
 
-
-            <Footer/>
-
+            <Footer />
         </>
     )
 }

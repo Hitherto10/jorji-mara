@@ -2,23 +2,24 @@ import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import Header from '../components/Header.jsx'
 import Footer from '../components/Footer.jsx'
+import { apiPost } from '../lib/api.js';
 
 // ─── Social icons ─────────────────────────────────────────────────────────────
 const PinterestIcon = () => (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-        <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/>
+        <path d="M12 0C5.373 0 0 5.373 0 12c0 5.084 3.163 9.426 7.627 11.174-.105-.949-.2-2.405.042-3.441.218-.937 1.407-5.965 1.407-5.965s-.359-.719-.359-1.782c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.632-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0z" />
     </svg>
 )
 
 const TikTokIcon = () => (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z"/>
+        <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.76a4.85 4.85 0 0 1-1.01-.07z" />
     </svg>
 )
 
 const InstagramIcon = () => (
     <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
+        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z" />
     </svg>
 )
 
@@ -38,14 +39,14 @@ const contactDetails = [
 
 const socials = [
     { label: 'Instagram', href: 'https://instagram.com', icon: <InstagramIcon /> },
-    { label: 'TikTok',    href: 'https://tiktok.com',    icon: <TikTokIcon /> },
+    { label: 'TikTok', href: 'https://tiktok.com', icon: <TikTokIcon /> },
     { label: 'Pinterest', href: 'https://pinterest.com', icon: <PinterestIcon /> },
 ]
 
 // ─── Animated field ───────────────────────────────────────────────────────────
 function FloatingField({ id, label, type = 'text', name, required, children }) {
     const [focused, setFocused] = useState(false)
-    const [filled,  setFilled]  = useState(false)
+    const [filled, setFilled] = useState(false)
 
     const handleChange = (e) => setFilled(e.target.value.length > 0)
     const raised = focused || filled
@@ -70,9 +71,9 @@ function FloatingField({ id, label, type = 'text', name, required, children }) {
                         htmlFor={id}
                         className={`absolute left-4 pointer-events-none transition-all duration-200 font-medium
                             ${raised
-                            ? 'top-2 text-[10px] tracking-widest uppercase text-stone-400'
-                            : 'top-4 text-sm text-stone-400'
-                        }`}
+                                ? 'top-2 text-[10px] tracking-widest uppercase text-stone-400'
+                                : 'top-4 text-sm text-stone-400'
+                            }`}
                     >
                         {label}
                     </label>
@@ -95,9 +96,9 @@ function FloatingField({ id, label, type = 'text', name, required, children }) {
                         htmlFor={id}
                         className={`absolute left-4 pointer-events-none transition-all duration-200 font-medium
                             ${raised
-                            ? 'top-2 text-[10px] tracking-widest uppercase text-stone-400'
-                            : 'top-[50%] -translate-y-1/2 text-sm text-stone-400'
-                        }`}
+                                ? 'top-2 text-[10px] tracking-widest uppercase text-stone-400'
+                                : 'top-[50%] -translate-y-1/2 text-sm text-stone-400'
+                            }`}
                     >
                         {label}
                     </label>
@@ -110,41 +111,31 @@ function FloatingField({ id, label, type = 'text', name, required, children }) {
 
 // ─── Main Contact Page ────────────────────────────────────────────────────────
 export default function Contact() {
-    const [status,   setStatus]   = useState('idle') // idle | sending | success | error
+    const [status, setStatus] = useState('idle') // idle | sending | success | error
     const formRef = useRef(null)
 
     const onSubmit = async (e) => {
-        e.preventDefault()
-        setStatus('sending')
-
-        const formData = new FormData(e.target)
-        formData.append('access_key', `${import.meta.env.VITE_WEB3FORMS_ACCESS_KEY}`)
-
+        e.preventDefault();
+        setStatus("sending");
+        const formEl = e.target;
         try {
-            const response = await fetch('https://api.web3forms.com/submit', {
-                method: 'POST',
-                body: formData,
-            })
-            const data = await response.json()
-
-            if (data.success) {
-                setStatus('success')
-                e.target.reset()
-                // Reset back to idle after a few seconds
-                setTimeout(() => setStatus('idle'), 6000)
-            } else {
-                setStatus('error')
-                setTimeout(() => setStatus('idle'), 4000)
-            }
+            const result = await apiPost("/api/contact", {
+                name: formEl.name.value,
+                email: formEl.email.value,
+                subject: formEl.subject?.value ?? "",
+                message: formEl.message.value,
+            });
+            setStatus(result.success ? "success" : "error");
+            if (result.success) formEl.reset();
         } catch {
-            setStatus('error')
-            setTimeout(() => setStatus('idle'), 4000)
+            setStatus("error");
         }
-    }
+        setTimeout(() => setStatus("idle"), result?.success ? 6000 : 4000);
+    };
 
     const sending = status === 'sending'
     const success = status === 'success'
-    const error   = status === 'error'
+    const error = status === 'error'
 
     return (
         <>
@@ -309,7 +300,7 @@ export default function Contact() {
 
                                     {/* Name + Email side by side on md+ */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <FloatingField id="name"  name="name"  label="Your name"  required />
+                                        <FloatingField id="name" name="name" label="Your name" required />
                                         <FloatingField id="email" name="email" label="Email address" type="email" required />
                                     </div>
 
@@ -341,9 +332,9 @@ export default function Contact() {
                                         disabled={sending}
                                         className={`mt-2 w-full h-13 flex items-center justify-center gap-3 text-xs tracking-[0.2em] uppercase font-semibold transition-all duration-200
                                             ${sending
-                                            ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
-                                            : 'bg-[#4d0011] hover:bg-[#3a000c] text-white'
-                                        }`}
+                                                ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+                                                : 'bg-[#4d0011] hover:bg-[#3a000c] text-white'
+                                            }`}
                                     >
                                         {sending ? (
                                             <>

@@ -24,6 +24,7 @@ export default function CollectionsShowcase() {
     // useCollections is backed by the same in-memory cache as useHomeData,
     // so if Home already fetched it, this component gets the data instantly.
     const { collections, loading } = useCollections()
+    console.log(collections)
     const [activeIdx, setActiveIdx] = useState(0)
     const active = collections[activeIdx]
 
@@ -45,22 +46,19 @@ export default function CollectionsShowcase() {
                                     <li key={col.id}>
                                         <button
                                             onClick={() => setActiveIdx(i)}
-                                            className={`group w-full flex items-baseline gap-3 py-4 border-b text-left transition-colors duration-200 ${
-                                                i === activeIdx ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'
-                                            }`}
+                                            className={`group w-full flex items-baseline gap-3 py-4 border-b text-left transition-colors duration-200 ${i === activeIdx ? 'border-stone-900' : 'border-stone-200 hover:border-stone-400'
+                                                }`}
                                         >
-                      <span className={`text-xs font-medium shrink-0 transition-colors duration-200 ${
-                          i === activeIdx ? 'text-stone-400' : 'text-stone-300'
-                      }`}>
-                        {col.number}
-                      </span>
-                                            <span className={`font-[Bricolage_Grotesque] text-2xl md:text-3xl font-light tracking-tight transition-colors duration-200 ${
-                                                i === activeIdx
-                                                    ? 'text-stone-900 italic'
-                                                    : 'text-stone-400 group-hover:text-stone-700 group-hover:italic'
-                                            }`}>
-                        {col.title}
-                      </span>
+                                            <span className={`text-xs font-medium shrink-0 transition-colors duration-200 ${i === activeIdx ? 'text-stone-400' : 'text-stone-300'
+                                                }`}>
+                                                {col.number}
+                                            </span>
+                                            <span className={`font-[Bricolage_Grotesque] text-2xl md:text-3xl font-light tracking-tight transition-colors duration-200 ${i === activeIdx
+                                                ? 'text-stone-900 italic'
+                                                : 'text-stone-400 group-hover:text-stone-700 group-hover:italic'
+                                                }`}>
+                                                {col.title}
+                                            </span>
                                         </button>
                                     </li>
                                 ))}
@@ -74,9 +72,8 @@ export default function CollectionsShowcase() {
                                     key={col.id}
                                     src={col.image}
                                     alt={col.title}
-                                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
-                                        i === activeIdx ? 'opacity-100' : 'opacity-0'
-                                    }`}
+                                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i === activeIdx ? 'opacity-100' : 'opacity-0'
+                                        }`}
                                     loading={i === 0 ? 'eager' : 'lazy'}
                                 />
                             ))}
@@ -87,9 +84,8 @@ export default function CollectionsShowcase() {
                             {collections.map((col, i) => (
                                 <div
                                     key={col.id}
-                                    className={`flex flex-col gap-5 transition-opacity duration-500 ${
-                                        i === activeIdx ? 'opacity-100' : 'opacity-0 absolute pointer-events-none'
-                                    }`}
+                                    className={`flex flex-col gap-5 transition-opacity duration-500 ${i === activeIdx ? 'opacity-100' : 'opacity-0 absolute pointer-events-none'
+                                        }`}
                                 >
                                     <h3 className="font-serif text-3xl md:text-4xl font-light leading-snug text-stone-900">
                                         {col.heading} <em className="italic">{col.headingEm}</em>

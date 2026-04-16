@@ -1,37 +1,3 @@
-// ── PATCH for HeroSection.jsx ─────────────────────────────────────────────────
-// Replace the Handbag icon in the hero nav with the CartIcon component.
-// This gives the hero nav a live cart badge.
-//
-// In HeroSection.jsx, make these changes:
-//
-// 1. Add this import at the top:
-//    import { CartIcon } from '../components/Header.jsx'
-//    import CartDrawer from '../components/cart/CartDrawer.jsx'
-//
-// 2. Add this state:
-//    const [cartOpen, setCartOpen] = useState(false)
-//
-// 3. Replace the hero right nav icons block:
-//    FROM:
-//      <div className="flex items-center space-x-5">
-//          <Search className="w-6 h-6 ..." />
-//          <Handbag className="w-6 h-6 ..." />
-//          <UserRound className="..." />
-//      </div>
-//
-//    TO:
-//      <div className="flex items-center space-x-5">
-//          <Search className="w-6 h-6 cursor-pointer hover:opacity-60 transition-opacity" />
-//          <CartIcon onClick={() => setCartOpen(true)} className="w-6 h-6" />
-//          <UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />
-//      </div>
-//
-// 4. Add before the closing </div> of the section:
-//    <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
-//
-// ─────────────────────────────────────────────────────────────────────────────
-// Full updated HeroSection.jsx below:
-
 import { Images } from "./img.js";
 import React, { useRef } from "react";
 import { motion, useScroll, useTransform, useMotionValueEvent } from "motion/react";
@@ -42,10 +8,10 @@ import SearchOverlay from './SearchOverlay.jsx'
 import { Menu, Search, UserRound } from "lucide-react";
 
 export default function HeroSection() {
-    const [menuOpen,  setMenuOpen]  = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
     const [showHeader, setShowHeader] = useState(false);
-    const [cartOpen,  setCartOpen]  = useState(false);
-    const [searchOpen,  setSearchOpen]  = useState(false)
+    const [cartOpen, setCartOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false)
 
     const { scrollY } = useScroll();
 
@@ -53,7 +19,7 @@ export default function HeroSection() {
         setShowHeader(latest > 200);
     });
 
-    const logoY     = useTransform(scrollY, [0, 400], ["0vh", "-42vh"]);
+    const logoY = useTransform(scrollY, [0, 400], ["0vh", "-42vh"]);
     const logoScale = useTransform(scrollY, [0, 400], [1, 0.18]);
 
     return (

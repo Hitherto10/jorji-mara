@@ -1,25 +1,20 @@
 {
-  "name": "jorjimara-api",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.99.3",
-    "axios": "^1.13.6",
-    "cloudinary": "^2.9.0",
-    "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
-    "express": "^5.2.1",
-    "express-rate-limit": "^8.3.1",
-    "helmet": "^8.1.0",
-    "morgan": "^1.10.1"
-  }
+	"name": "jorjimara-api",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"test": "vitest"
+	},
+	"devDependencies": {
+		"wrangler": "^4.79.0"
+	},
+	"dependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.13.5",
+		"@supabase/supabase-js": "^2.100.1",
+		"hono": "^4.12.9",
+		"vitest": "^4.1.2"
+	}
 }

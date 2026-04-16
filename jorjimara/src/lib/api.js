@@ -1,19 +1,27 @@
-import axios from 'axios'
-import { supabase } from './supabase.js'
+const BASE_URL = import.meta.env.VITE_CLDFLARE_API_URL;
 
-const api = axios.create({ baseURL: import.meta.env.VITE_SUPABASE_URL })
-
-api.interceptors.request.use(async (config) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.access_token) {
-        config.headers.Authorization = `Bearer ${session.access_token}`
+export async function apiGet(path, params = {}) {
+    const qs = new URLSearchParams(params).toString();
+    const url = `${BASE_URL}${path}${qs ? "?" + qs : ""}`;
+    const res = await fetch(url, {
+        headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
     }
-    return config
-})
+    return res.json();
+}
 
-export default api
-
-
-// Usage in any component:
-// import api from '../lib/api'
-// const { data } = await api.get('/api/products')
+export async function apiPost(path, body = {}) {
+    const res = await fetch(`${BASE_URL}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+    }
+    return res.json();
+}

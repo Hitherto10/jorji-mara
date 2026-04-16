@@ -18,14 +18,19 @@ const STORAGE_KEY = 'jm_cart'
 function load() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY)
-        return raw ? JSON.parse(raw) : []
+        const items = raw ? JSON.parse(raw) : []
+        // Ensure price is a number, fallback to 0 if not
+        return items.map(item => ({
+            ...item,
+            price: isNaN(Number(item.price)) ? 0 : Number(item.price)
+        }))
     } catch {
         return []
     }
 }
 
 function save(items) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)) } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)) } catch { }
 }
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -71,15 +76,15 @@ export function CartProvider({ children }) {
     // Persist every change
     useEffect(() => { save(items) }, [items])
 
-    const addItem   = useCallback((item)                 => dispatch({ type: 'ADD',          item }),          [])
-    const setQty    = useCallback((variantId, quantity)  => dispatch({ type: 'SET_QUANTITY', variantId, quantity }), [])
-    const removeItem= useCallback((variantId)            => dispatch({ type: 'REMOVE',       variantId }),     [])
-    const clearCart = useCallback(()                     => dispatch({ type: 'CLEAR' }),                       [])
+    const addItem = useCallback((item) => dispatch({ type: 'ADD', item }), [])
+    const setQty = useCallback((variantId, quantity) => dispatch({ type: 'SET_QUANTITY', variantId, quantity }), [])
+    const removeItem = useCallback((variantId) => dispatch({ type: 'REMOVE', variantId }), [])
+    const clearCart = useCallback(() => dispatch({ type: 'CLEAR' }), [])
 
-    const totalItems    = items.reduce((s, i) => s + i.quantity, 0)
-    const subtotal      = items.reduce((s, i) => s + i.price * i.quantity, 0)
-    const isInCart      = useCallback((variantId) => items.some(i => i.variantId === variantId), [items])
-    const getItem       = useCallback((variantId) => items.find(i => i.variantId === variantId), [items])
+    const totalItems = items.reduce((s, i) => s + i.quantity, 0)
+    const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
+    const isInCart = useCallback((variantId) => items.some(i => i.variantId === variantId), [items])
+    const getItem = useCallback((variantId) => items.find(i => i.variantId === variantId), [items])
 
     return (
         <CartContext.Provider value={{ items, addItem, setQty, removeItem, clearCart, totalItems, subtotal, isInCart, getItem }}>

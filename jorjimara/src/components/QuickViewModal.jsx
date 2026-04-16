@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { X, Plus, Minus, ArrowRight, ExternalLink } from 'lucide-react'
-import { supabase } from '../lib/supabase.js'
+import { X, Plus, Minus, ArrowRight } from 'lucide-react'
 import { useQuickView } from '../context/QuickViewContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { useToast } from './Toast.jsx'
-import { buildVariantLabel, resolvePrice } from '../hooks/useProducts.js'
+import { apiGet } from '../lib/api.js'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n))
@@ -45,9 +44,9 @@ function extractOptions(variants) {
 
 function findVariant(variants, selections) {
     return variants.find(v => {
-        const sizeMatch  = !selections.size  || (v.size  ?? '').toLowerCase() === selections.size.toLowerCase()
+        const sizeMatch = !selections.size || (v.size ?? '').toLowerCase() === selections.size.toLowerCase()
         const colorMatch = !selections.color || (v.color ?? '').toLowerCase() === selections.color.toLowerCase()
-        const optMatch   = !selections.optionValue || v.option_value === selections.optionValue
+        const optMatch = !selections.optionValue || v.option_value === selections.optionValue
         return sizeMatch && colorMatch && optMatch
     }) ?? null
 }
@@ -79,7 +78,7 @@ function ModalGallery({ images, productName }) {
     }, [images.length])
 
     const onTouchStart = e => { touchStartX.current = e.touches[0].clientX }
-    const onTouchEnd   = e => {
+    const onTouchEnd = e => {
         if (touchStartX.current === null) return
         const delta = touchStartX.current - e.changedTouches[0].clientX
         if (Math.abs(delta) > 40) go(delta > 0 ? 1 : -1)
@@ -162,9 +161,8 @@ function ModalGallery({ images, productName }) {
                         <button
                             key={img.id ?? i}
                             onClick={() => setActiveIdx(i)}
-                            className={`w-12 h-14 shrink-0 overflow-hidden border-2 transition-all ${
-                                i === activeIdx ? 'border-stone-900' : 'border-transparent hover:border-stone-300'
-                            }`}
+                            className={`w-12 h-14 shrink-0 overflow-hidden border-2 transition-all ${i === activeIdx ? 'border-stone-900' : 'border-transparent hover:border-stone-300'
+                                }`}
                         >
                             <img src={img.url} alt="" className="w-full h-full object-cover" />
                         </button>
@@ -186,11 +184,11 @@ function QuickViewSkeleton() {
                 <div className="h-px bg-stone-100 w-full my-2" />
                 <div className="h-3 bg-stone-100 rounded w-1/4 mt-2" />
                 <div className="flex gap-2 mt-1">
-                    {[1,2,3].map(i => <div key={i} className="h-9 w-12 bg-stone-100 rounded-sm" />)}
+                    {[1, 2, 3].map(i => <div key={i} className="h-9 w-12 bg-stone-100 rounded-sm" />)}
                 </div>
                 <div className="h-3 bg-stone-100 rounded w-1/4 mt-3" />
                 <div className="flex gap-2 mt-1">
-                    {[1,2].map(i => <div key={i} className="w-8 h-8 bg-stone-100 rounded-full" />)}
+                    {[1, 2].map(i => <div key={i} className="w-8 h-8 bg-stone-100 rounded-full" />)}
                 </div>
                 <div className="mt-auto flex gap-3">
                     <div className="h-12 flex-1 bg-stone-100 rounded-sm" />
@@ -203,18 +201,18 @@ function QuickViewSkeleton() {
 // ─── Main QuickView Modal ─────────────────────────────────────────────────────
 export default function QuickViewModal() {
     const { slug, closeQuickView } = useQuickView()
-    const { addItem, isInCart }    = useCart()
-    const toast                    = useToast()
-    const navigate                 = useNavigate()
+    const { addItem, isInCart } = useCart()
+    const toast = useToast()
+    const navigate = useNavigate()
 
-    const [product,   setProduct]   = useState(null)
-    const [variants,  setVariants]  = useState([])
+    const [product, setProduct] = useState(null)
+    const [variants, setVariants] = useState([])
     const [allImages, setAllImages] = useState([])
-    const [loading,   setLoading]   = useState(false)
-    const [error,     setError]     = useState(null)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState(null)
 
     const [selections, setSelections] = useState({ size: null, color: null, optionValue: null })
-    const [quantity,   setQuantity]   = useState(1)
+    const [quantity, setQuantity] = useState(1)
     const [addedPulse, setAddedPulse] = useState(false)
 
     // ── Fetch when slug changes ───────────────────────────────────────────
@@ -232,68 +230,42 @@ export default function QuickViewModal() {
         setLoading(true)
         setError(null)
 
-        async function load() {
-            // Fetch product + variants + images in parallel
-            const [prodRes] = await Promise.all([
-                supabase
-                    .from('products')
-                    .select('*')
-                    .eq('slug', slug)
-                    .eq('is_active', true)
-                    .single(),
-            ])
+        // ─── CHANGED: one API call instead of three Supabase calls ────────
+        // Before: three separate supabase.from() calls in sequence (waterfall)
+        // After:  single GET /api/products/:slug — Worker fetches all three
+        //         tables in parallel and returns { product, variants, images }
+        apiGet(`/api/products/${slug}`)
+            .then(({ product: prod, variants: vars, images: imgs }) => {
+                if (cancelled) return
 
-            if (cancelled) return
-            if (prodRes.error || !prodRes.data) {
-                setError('Product not found.')
+                setProduct(prod)
+                setVariants(vars ?? [])
+                setAllImages(imgs ?? [])
                 setLoading(false)
-                return
-            }
 
-            const prod = prodRes.data
+                // Pre-select first active variant (same logic as before)
+                const first = (vars ?? []).find(v => v.is_active)
+                if (first) {
+                    setSelections({
+                        size: first.size ?? null,
+                        color: first.color ?? null,
+                        optionValue: first.option_value ?? null,
+                    })
+                }
+            })
+            .catch(err => {
+                if (cancelled) return
+                setError(err.message ?? 'Product not found.')
+                setLoading(false)
+            })
 
-            const [varsRes, imgsRes] = await Promise.all([
-                supabase
-                    .from('product_variants')
-                    .select('*')
-                    .eq('product_id', prod.id)
-                    .order('created_at', { ascending: true }),
-                supabase
-                    .from('product_images')
-                    .select('*')
-                    .eq('product_id', prod.id)
-                    .order('sort_order', { ascending: true }),
-            ])
-
-            if (cancelled) return
-
-            const vars = varsRes.data ?? []
-            const imgs = imgsRes.data ?? []
-
-            setProduct(prod)
-            setVariants(vars)
-            setAllImages(imgs)
-            setLoading(false)
-
-            // Pre-select first active variant
-            const first = vars.find(v => v.is_active)
-            if (first) {
-                setSelections({
-                    size:        first.size         ?? null,
-                    color:       first.color        ?? null,
-                    optionValue: first.option_value ?? null,
-                })
-            }
-        }
-
-        load()
         return () => { cancelled = true }
     }, [slug])
 
     // ── Lock scroll while open ────────────────────────────────────────────
     useEffect(() => {
         if (slug) document.body.style.overflow = 'hidden'
-        else      document.body.style.overflow = ''
+        else document.body.style.overflow = ''
         return () => { document.body.style.overflow = '' }
     }, [slug])
 
@@ -305,18 +277,18 @@ export default function QuickViewModal() {
     }, [closeQuickView])
 
     // ── Derived ───────────────────────────────────────────────────────────
-    const activeVariants  = variants.filter(v => v.is_active)
+    const activeVariants = variants.filter(v => v.is_active)
     const { sizes, colors, optionName, optionValues } = extractOptions(activeVariants)
     const selectedVariant = findVariant(activeVariants, selections)
-    const displayImages   = getImagesForVariant(allImages, selectedVariant?.id, product?.id)
+    const displayImages = getImagesForVariant(allImages, selectedVariant?.id, product?.id)
 
-    const displayPrice  = selectedVariant?.price ?? product?.price
-    const comparePrice  = product?.compare_price
-    const hasSale       = comparePrice && Number(comparePrice) > Number(displayPrice)
-    const stock         = selectedVariant?.stock ?? 0
-    const isOutOfStock  = selectedVariant ? stock <= 0 : false
-    const isLowStock    = selectedVariant && stock > 0 && stock <= 5
-    const inCart        = selectedVariant ? isInCart(selectedVariant.id) : false
+    const displayPrice = selectedVariant?.price ?? product?.price
+    const comparePrice = product?.compare_price
+    const hasSale = comparePrice && Number(comparePrice) > Number(displayPrice)
+    const stock = selectedVariant?.stock ?? 0
+    const isOutOfStock = selectedVariant ? stock <= 0 : false
+    const isLowStock = selectedVariant && stock > 0 && stock <= 5
+    const inCart = selectedVariant ? isInCart(selectedVariant.id) : false
 
     const select = (key, value) => {
         setSelections(prev => ({ ...prev, [key]: value }))
@@ -326,15 +298,15 @@ export default function QuickViewModal() {
     const handleAddToCart = () => {
         if (!selectedVariant || isOutOfStock) return
         addItem({
-            variantId:    selectedVariant.id,
-            productId:    product.id,
-            productName:  product.name,
-            slug:         product.slug,
-            variantLabel: buildVariantLabel(selectedVariant),
-            price:        resolvePrice(selectedVariant, product),
-            imageUrl:     displayImages[0]?.url ?? null,
+            variantId: selectedVariant.id,
+            productId: product.id,
+            productName: product.name,
+            slug: product.slug,
+            // variantLabel: buildVariantLabel(selectedVariant),
+            price: selectedVariant?.price ?? product?.price ?? 0,
+            imageUrl: displayImages[0]?.url ?? null,
             quantity,
-            stock:        selectedVariant.stock ?? 99,
+            stock: selectedVariant.stock ?? 99,
         })
         setAddedPulse(true)
         setTimeout(() => setAddedPulse(false), 600)
@@ -403,7 +375,7 @@ export default function QuickViewModal() {
 
                                     {/* ── LEFT: Gallery ── */}
                                     <div className="relative bg-stone-50 overflow-hidden"
-                                         style={{ maxHeight: 'min(90vh, 680px)' }}>
+                                        style={{ maxHeight: 'min(90vh, 680px)' }}>
                                         {/* Sale badge */}
                                         {hasSale && (
                                             <span className="absolute top-3 left-3 z-10 bg-[#4d0011] text-white text-[9px] tracking-widest uppercase font-medium px-2.5 py-1">
@@ -415,7 +387,6 @@ export default function QuickViewModal() {
                                                 New
                                             </span>
                                         )}
-                                        {/* Mobile: fixed height, desktop: full height */}
                                         <div className="h-72 md:h-full p-0">
                                             <ModalGallery images={displayImages} productName={product.name} />
                                         </div>
@@ -469,16 +440,15 @@ export default function QuickViewModal() {
                                                             v.stock > 0
                                                         )
                                                         const selected = (selections.color ?? '').toLowerCase() === c.name.toLowerCase()
-                                                        const isMulti  = c.hexAll.length > 1
+                                                        const isMulti = c.hexAll.length > 1
                                                         return (
                                                             <button
                                                                 key={c.name}
                                                                 onClick={() => select('color', c.name)}
                                                                 title={c.name}
                                                                 disabled={!available && !selected}
-                                                                className={`relative w-8 h-8 rounded-full border-2 transition-all ${
-                                                                    selected ? 'border-stone-900 scale-110' : 'border-transparent hover:border-stone-400'
-                                                                } ${!available && !selected ? 'opacity-25 cursor-not-allowed' : ''}`}
+                                                                className={`relative w-8 h-8 rounded-full border-2 transition-all ${selected ? 'border-stone-900 scale-110' : 'border-transparent hover:border-stone-400'
+                                                                    } ${!available && !selected ? 'opacity-25 cursor-not-allowed' : ''}`}
                                                             >
                                                                 {isMulti ? (
                                                                     <span className="absolute inset-0 rounded-full overflow-hidden flex">
@@ -524,13 +494,12 @@ export default function QuickViewModal() {
                                                                 key={size}
                                                                 onClick={() => select('size', size)}
                                                                 disabled={!available && !selected}
-                                                                className={`min-w-[42px] px-3 h-8 text-[10px] uppercase tracking-wide border transition-all ${
-                                                                    selected
-                                                                        ? 'bg-stone-900 text-white border-stone-900'
-                                                                        : available
-                                                                            ? 'border-stone-300 text-stone-700 hover:border-stone-700'
-                                                                            : 'border-stone-200 text-stone-300 cursor-not-allowed line-through'
-                                                                }`}
+                                                                className={`min-w-[42px] px-3 h-8 text-[10px] uppercase tracking-wide border transition-all ${selected
+                                                                    ? 'bg-stone-900 text-white border-stone-900'
+                                                                    : available
+                                                                        ? 'border-stone-300 text-stone-700 hover:border-stone-700'
+                                                                        : 'border-stone-200 text-stone-300 cursor-not-allowed line-through'
+                                                                    }`}
                                                             >
                                                                 {size}
                                                             </button>
@@ -550,7 +519,7 @@ export default function QuickViewModal() {
                                                     {optionValues.map(val => {
                                                         const available = activeVariants.some(v =>
                                                             v.option_value === val &&
-                                                            (!selections.size  || (v.size  ?? '').toLowerCase() === selections.size.toLowerCase()) &&
+                                                            (!selections.size || (v.size ?? '').toLowerCase() === selections.size.toLowerCase()) &&
                                                             (!selections.color || (v.color ?? '').toLowerCase() === selections.color.toLowerCase()) &&
                                                             v.stock > 0
                                                         )
@@ -560,13 +529,12 @@ export default function QuickViewModal() {
                                                                 key={val}
                                                                 onClick={() => select('optionValue', val)}
                                                                 disabled={!available && !selected}
-                                                                className={`px-3 h-8 text-[10px] tracking-wide border transition-all ${
-                                                                    selected
-                                                                        ? 'bg-[#4d0011] text-white border-[#4d0011]'
-                                                                        : available
-                                                                            ? 'border-stone-300 text-stone-700 hover:border-stone-700'
-                                                                            : 'border-stone-200 text-stone-300 cursor-not-allowed line-through'
-                                                                }`}
+                                                                className={`px-3 h-8 text-[10px] tracking-wide border transition-all ${selected
+                                                                    ? 'bg-[#4d0011] text-white border-[#4d0011]'
+                                                                    : available
+                                                                        ? 'border-stone-300 text-stone-700 hover:border-stone-700'
+                                                                        : 'border-stone-200 text-stone-300 cursor-not-allowed line-through'
+                                                                    }`}
                                                             >
                                                                 {val}
                                                             </button>
@@ -615,11 +583,11 @@ export default function QuickViewModal() {
                                                 className={`w-full h-11 flex items-center justify-center gap-2 text-xs tracking-widest uppercase font-medium transition-all
                                                     ${addedPulse ? 'scale-95' : 'scale-100'}
                                                     ${isOutOfStock || !selectedVariant
-                                                    ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
-                                                    : inCart
-                                                        ? 'bg-green-800 text-white hover:bg-green-700'
-                                                        : 'bg-stone-900 text-white hover:bg-stone-700'
-                                                }`}
+                                                        ? 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                                                        : inCart
+                                                            ? 'bg-green-800 text-white hover:bg-green-700'
+                                                            : 'bg-stone-900 text-white hover:bg-stone-700'
+                                                    }`}
                                             >
                                                 {isOutOfStock
                                                     ? 'Out of Stock'
