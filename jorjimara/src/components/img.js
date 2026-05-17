@@ -9,7 +9,7 @@ import coastal_dream_set from '../assets/images/coastal_dream_set.jpg';
 import main_logo from '../assets/icons/main_logo.png';
 import jorjiImage from '../assets/images/jorjiImage.webp';
 import hats_2 from '../assets/images/hats_2.png';
-import white_logo from '../assets/icons/white-logo.png';
+import white_logo from '../../../../jorji-admin/src/assets/white-logo.png';
 import remitaLogo from '../assets/images/remitaLogo.png';
 import flutterwaveLogo from '../assets/images/flutterwaveLogo.png';
 import paystackLogo from '../assets/images/paystackLogo.png';
@@ -19,13 +19,6 @@ import post_3 from '../assets/images/instagram/post_3.png';
 import post_4 from '../assets/images/instagram/post_4.png';
 import post_5 from '../assets/images/instagram/post_5.png';
 import post_6 from '../assets/images/instagram/post_6.png';
-
-
-
-
-
-
-
 
 export const Images = {
     hero_image,

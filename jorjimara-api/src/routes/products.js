@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import { createSupabaseClient } from '../lib/supabase.js';
 const products = new Hono();
 const PAGE_SIZE = 24;
+
 // ─── GET /api/products/search (must be before /:slug) ───────────────
 products.get("/search", async (c) => {
     const q = c.req.query("q")?.trim() ?? "";
@@ -14,12 +15,13 @@ products.get("/search", async (c) => {
     const { data, error } = await db
         .from("products")
         .select(`
-id, name, slug, price, currency, compare_price, tags,
-product_images ( url, sort_order, variant_id ),
-product_variants ( id, is_active, created_at, price )`,)
+			id, name, slug, price, currency, compare_price, tags,
+			product_images ( url, sort_order, variant_id ),
+			product_variants ( id, is_active, created_at, price )`,)
         .ilike("name", `%${q}%`)
         .eq("is_active", "true")
         .limit(limit);
+
     if (error) return c.json({ error: error.message }, 500);
     const results = (data ?? []).map(p => {
         const primaryImage = (p.product_images ?? [])

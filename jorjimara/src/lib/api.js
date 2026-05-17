@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_CLDFLARE_API_URL;
+const BASE_URL = import.meta.env.VITE_DEMO_CLDFLARE_API_URL;
 
 export async function apiGet(path, params = {}) {
     const qs = new URLSearchParams(params).toString();

@@ -233,13 +233,13 @@ export default function Home() {
                             <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Now stocking<br />J~M</h2>
                             <a href="/collections/naked-and-famous"
                                 className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
-                                Shop JorjiMara
+                                Shop Jorji Mara
                             </a>
                         </div>
                     </div>
 
                     <div
-                        className="relative group overflow-hidden rounded-sm min-h-[200px] md:min-h-[280px] md:col-span-2 flex items-end justify-start text-left">
+                        className="relative group overflow-hidden rounded-sm    min-h-50 md:min-h-70 md:col-span-2 flex items-end justify-start text-left">
                         <div className="absolute inset-0">
                             <img
                                 src={Images.wideImage}

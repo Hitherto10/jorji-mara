@@ -3,6 +3,7 @@
 const LIMITS = {
     "/api/products/search": 30,
     "/api/checkout/init": 10,
+    "/api/generate/rrr": 10,
     "/api/contact": 5,
     "default": 100,
 };

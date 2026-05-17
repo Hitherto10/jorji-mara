@@ -7,10 +7,10 @@ import { AnimatePresence, motion } from 'motion/react'
 import { apiPost } from '../lib/api.js';
 import remitaLogo from "../assets/images/remitaLogo.png";
 
-// ─── Format helpers ───────────────────────────────────────────────────────────
+// ─── Format helpers 
 const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n))
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
+// ─── Step indicator 
 const STEPS = ['Information', 'Shipping', 'Payment']
 
 function StepBar({ current }) {
@@ -38,7 +38,7 @@ function StepBar({ current }) {
     )
 }
 
-// ─── Field components ─────────────────────────────────────────────────────────
+// ─── Field components
 function Field({ label, id, type = 'text', value, onChange, placeholder, required, autoComplete, error }) {
     return (
         <div className="flex flex-col gap-1">
@@ -85,7 +85,7 @@ function SelectField({ label, id, value, onChange, options, required, error }) {
     )
 }
 
-// ─── Order summary ────────────────────────────────────────────────────────────
+// ─── Order summary ─
 function OrderSummary({ items, subtotal, collapsed, onToggle }) {
     return (
         <div className="lg:hidden">
@@ -178,7 +178,7 @@ function SummaryItems({ items, subtotal, discountCode, onDiscountApply }) {
     )
 }
 
-// ─── Express checkout bar ──────────────────────────────────────────────────────
+// ─── Express checkout bar
 function ExpressCheckout() {
     return (
         <div className="mb-8">
@@ -216,7 +216,7 @@ function ExpressCheckout() {
     )
 }
 
-// ─── Step 1: Information ──────────────────────────────────────────────────────
+// ─── Step 1: Information
 function StepInformation({ data, onChange, onNext }) {
     const [errors, setErrors] = useState({})
 
@@ -262,7 +262,7 @@ function StepInformation({ data, onChange, onNext }) {
     )
 }
 
-// ─── Step 2: Shipping ─────────────────────────────────────────────────────────
+// ─── Step 2: Shipping
 const NIGERIAN_STATES = [
     '', 'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue',
     'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT - Abuja',
@@ -272,7 +272,6 @@ const NIGERIAN_STATES = [
 ].map(s => ({ value: s, label: s || 'State / Region' }))
 
 const SHIPPING_OPTIONS = [
-    { id: 'standard', label: 'Standard Delivery', detail: '5–7 business days', price: 2500 },
     { id: 'express', label: 'Express Delivery', detail: '2–3 business days', price: 5000 },
 ]
 
@@ -368,8 +367,6 @@ function StepShipping({ contact, data, onChange, onNext, onBack }) {
     )
 }
 
-// ─── Step 3: Payment ──────────────────────────────────────────────────────────
-// Payment providers are mock/placeholder UI only — no real integration.
 const PAYMENT_METHODS = [
     {
         id: 'paystack',
@@ -383,12 +380,63 @@ const PAYMENT_METHODS = [
         description: 'Cards, bank transfer, and mobile money',
         icon: Images.flutterwaveLogo,
     }, {
-        id: 'Remita',
+        id: 'remita',
         label: 'Remita',
         description: 'Cards, bank transfer, and mobile money',
         icon: Images.remitaLogo,
     }
 ]
+
+function makePayment(rrr, orderData) {
+    let paymentEngine = RmPaymentEngine.init(
+        {
+            key: import.meta.env.VITE_REMITA_PUBLIC_KEY,
+            processRrr: true,
+            transactionId: Math.floor(Math.random()*1101233),
+            extendedData: {
+                customFields: [
+                    {
+                        name: "rrr",
+                        value: rrr
+                    }
+                ]
+            },
+        onSuccess: async function (response) {
+            console.log('callback Successful Response', response);
+            const saveOrderPayload = {
+                rrr: rrr,
+                contact: { email: orderData.email },
+                shipping: {
+                    firstName: orderData.payerName.split(' ')[0],
+                    lastName: orderData.payerName.split(' ').slice(1).join(' '),
+                    address: orderData.shipping?.address || '',
+                    apartment: orderData.shipping?.apartment || '',
+                    city: orderData.shipping?.city || '',
+                    state: orderData.shipping?.state || '',
+                    phone: orderData.payerPhone,
+                    shippingMethod: orderData.shippingMethod
+                },
+                items: orderData.items,
+                subtotal: orderData.subtotal,
+                shippingFee: orderData.shippingFee,
+                total: orderData.total
+            };
+            
+            await fetch('/api/checkout/save-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(saveOrderPayload)
+            });
+        },
+        onError: function (response) {
+            console.log('callback Error Response', response);
+        },
+        onClose: function () {
+            console.log("closed");
+        }
+    });
+    paymentEngine.showPaymentWidget();
+}
 
 function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
     const [selected, setSelected] = useState('paystack')
@@ -406,8 +454,8 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                 variantId: item.variantId,
                 quantity: item.quantity,
             }));
-            console.log(cartItems);
-            const result = await apiPost("/api/generate/rrr", {
+
+            const payload = {
                 items: cartItems,
                 shippingMethod: shipping.shippingMethod ?? "standard",
                 email: contact.email,
@@ -415,10 +463,18 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                 payerEmail: contact.email,
                 payerPhone: shipping.phone,
                 description: "Order payment for Jorji Mara",
-            });
+                paymentMethod: selected,
+                shipping: shipping, // Include full shipping object
+                subtotal: subtotal,
+                shippingFee: shippingPrice,
+                total: total,
+            }
 
-            console.log(result.rrr)
-            // window.location.href = result.paymentUrl;
+            const result = await apiPost("/api/checkout/init", payload);
+
+            if (selected === 'remita'){
+                makePayment(result.rrr, payload)
+            }
         } catch (err) {
             console.error("[Checkout]", err);
             setPlacing(false);
@@ -474,8 +530,7 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                 <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-stone-400 mb-3">
                     Payment Method
                 </h2>
-
-                {/* Compact Grid: 2 columns on mobile, 4 on tablet/desktop */}
+ 
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                     {PAYMENT_METHODS.map((pm) => (
                         <label
@@ -564,7 +619,7 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
     )
 }
 
-// ─── Main Checkout ────────────────────────────────────────────────────────────
+// Main Checkout  
 export default function Checkout() {
     const navigate = useNavigate()
     const { items, subtotal, clearCart } = useCart()
@@ -635,7 +690,7 @@ export default function Checkout() {
                     />
 
                     {/* Express checkout — only show on step 0 */}
-                    {step === 0 && <ExpressCheckout />}
+                    {/*{step === 0 && <ExpressCheckout />}*/}
 
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -694,4 +749,6 @@ export default function Checkout() {
         </div>
     )
 }
+
+
 
