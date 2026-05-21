@@ -15,6 +15,8 @@ const SizeChart = lazy(() => import('./pages/SizeChart.jsx'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy.jsx'))
 const ShippingAndReturns = lazy(() => import('./pages/ShippingReturns.jsx'))
 const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage.jsx'))
+const Terms = lazy(() => import('./pages/Terms.jsx'))
+const RefundPolicy = lazy(() => import('./pages/RefundPolicy.jsx'))
 
 function App() {
     return (
@@ -29,6 +31,8 @@ function App() {
                             <Route path="/products/:slug" element={<ProductPage />} />
                             <Route path="/checkout" element={<Checkout />} />
                             <Route path="/contact" element={<Contact />} />
+                            <Route path="/terms" element={<Terms />} />
+                            <Route path="/refund-policy" element={<RefundPolicy />} />
                             <Route path="/size-chart" element={<SizeChart />} />
                             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                             <Route path="/shipping-and-returns" element={<ShippingAndReturns />} />

@@ -32,6 +32,12 @@ const customerCare = [
     },
     {
         id: "3",
+        item: "Refund Policy",
+        link: "/refund-policy"
+    },
+
+    {
+        id: "4",
         item: "Size Chart",
         link: "/size-chart"
     },
@@ -43,6 +49,11 @@ const Information = [
         id: "1",
         item: "Privacy Policy",
         link: "/privacy-policy"
+    },
+    {
+        id: "2",
+        item: "Terms and Conditions",
+        link: "/terms"
     },
 ]
 

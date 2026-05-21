@@ -42,7 +42,7 @@ export default function AddToCartButton({
             productId: product.id,
             productName: product.name,
             slug: product.slug,
-            // variantLabel: buildVariantLabel(variant),
+            variantLabel: [variant.color, variant.size, variant.option_value].filter(Boolean).join(' / '),
             price: variant?.price ?? product?.price ?? 0,
             imageUrl: imageUrl ?? null,
             quantity,

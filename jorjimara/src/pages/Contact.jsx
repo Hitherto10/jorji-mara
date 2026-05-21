@@ -35,6 +35,18 @@ const contactDetails = [
         value: 'Within 24 hours',
         href: null,
     },
+     {
+        label: 'Reach out',
+        value: '+234-912-712-6349',
+        href: null,
+    },
+     {
+        label: 'Address',
+        value: '16 - Janet .Y. Duniya Street, Abuja',
+        href: null,
+    },
+
+
 ]
 
 const socials = [

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { Images } from '../components/img.js'
@@ -6,6 +6,9 @@ import { Check, ChevronRight, ChevronDown, Lock, X, ShieldCheck, Truck } from 'l
 import { AnimatePresence, motion } from 'motion/react'
 import { apiPost } from '../lib/api.js';
 import remitaLogo from "../assets/images/remitaLogo.png";
+
+// Global ref for makePayment callback
+let globalOnPlaceRef = null;
 
 // ─── Format helpers 
 const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n))
@@ -272,7 +275,8 @@ const NIGERIAN_STATES = [
 ].map(s => ({ value: s, label: s || 'State / Region' }))
 
 const SHIPPING_OPTIONS = [
-    { id: 'express', label: 'Express Delivery', detail: '2–3 business days', price: 5000 },
+    { id: 'express', label: 'Express Delivery Within Abuja', detail: '2–3 business days', price: 5000 },
+    { id: 'other-states', label: 'Delivery Outside Abuja', detail: '5–10 business days', price: 8000 },
 ]
 
 function StepShipping({ contact, data, onChange, onNext, onBack }) {
@@ -369,21 +373,10 @@ function StepShipping({ contact, data, onChange, onNext, onBack }) {
 
 const PAYMENT_METHODS = [
     {
-        id: 'paystack',
-        label: 'Paystack',
-        description: 'Pay with your debit/credit card via Paystack',
-        icon: Images.paystackLogo,
-    },
-    {
-        id: 'flutterwave',
-        label: 'Flutterwave',
-        description: 'Cards, bank transfer, and mobile money',
-        icon: Images.flutterwaveLogo,
-    }, {
-        id: 'remita',
-        label: 'Remita',
-        description: 'Cards, bank transfer, and mobile money',
-        icon: Images.remitaLogo,
+        id: 'bank_transfer',
+        label: 'Bank Transfer',
+        description: 'Direct Bank Transfer',
+        icon: null,
     }
 ]
 
@@ -402,7 +395,7 @@ function makePayment(rrr, orderData) {
                 ]
             },
         onSuccess: async function (response) {
-            console.log('callback Successful Response', response);
+            console.log('Remita Payment Successful Response', response);
             const saveOrderPayload = {
                 rrr: rrr,
                 contact: { email: orderData.email },
@@ -422,26 +415,182 @@ function makePayment(rrr, orderData) {
                 total: orderData.total
             };
             
-            await fetch('/api/checkout/save-order', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(saveOrderPayload)
-            });
+            try {
+                const saveResponse = await fetch('/api/checkout/save-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(saveOrderPayload)
+                });
+                
+                if (!saveResponse.ok) {
+                    const errorData = await saveResponse.json().catch(() => ({}));
+                    console.error('Failed to save order:', errorData);
+                    throw new Error('Failed to save order');
+                }
+                
+                const savedOrder = await saveResponse.json();
+                console.log('Order saved successfully:', savedOrder);
+                
+                // Call the onPlace callback if it exists
+                if (globalOnPlaceRef) {
+                    globalOnPlaceRef();
+                }
+            } catch (err) {
+                console.error('Error in onSuccess callback:', err);
+                alert('Order could not be saved. Please contact support.');
+            }
         },
         onError: function (response) {
-            console.log('callback Error Response', response);
+            console.log('Remita Payment Error Response', response);
         },
         onClose: function () {
-            console.log("closed");
+            console.log("Remita payment widget closed");
         }
     });
     paymentEngine.showPaymentWidget();
 }
 
+function StepSuccess({ email, items, contact, shipping, subtotal, shippingFee, total }) {
+    const [summaryOpen, setSummaryOpen] = useState(true)
+    const orderRef = `JM-${Date.now().toString(36).toUpperCase().slice(-8)}`
+
+    const shippingAddress = [
+        shipping?.address,
+        shipping?.apartment,
+        shipping?.city,
+        shipping?.state,
+    ].filter(Boolean).join(', ')
+
+    return (
+        <div className="flex flex-col items-center py-10 font-[Bricolage_Grotesque]">
+
+            {/* ── Hero: checkmark + heading ── */}
+            <div className="flex flex-col items-center text-center mb-8">
+                <div className="w-16 h-16 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center mb-5 shadow-sm">
+                    <Check className="w-8 h-8 text-green-500 stroke-[2.5]" />
+                </div>
+                <h1 className="text-2xl md:text-3xl font-semibold text-stone-900 mb-2">
+                    Thank you for your order!
+                </h1>
+                <p className="text-sm text-stone-500 max-w-sm">
+                    Your order has been received and your bank transfer is being confirmed.
+                </p>
+            </div>
+
+            {/* ── Order ref chip ── */}
+            <div className="flex items-center gap-3 border border-stone-200 rounded-md px-4 py-2.5 mb-4 text-sm">
+                <span className="text-stone-400 text-xs uppercase tracking-widest">Order ref</span>
+                <span className="font-mono font-semibold text-stone-800">{orderRef}</span>
+            </div>
+
+            {/* ── Email notice ── */}
+            <div className="flex items-center gap-2 text-sm text-stone-500 mb-10">
+                <svg className="w-4 h-4 shrink-0 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                <span>Order confirmation sent to <strong className="text-stone-700">{contact?.email}</strong></span>
+            </div>
+
+            {/* ── Order Summary ── */}
+            <div className="w-full max-w-xl border border-stone-200 rounded-xl overflow-hidden mb-6">
+                {/* Header */}
+                <button
+                    onClick={() => setSummaryOpen(v => !v)}
+                    className="w-full flex items-center justify-between px-5 py-4 bg-white hover:bg-stone-50 transition-colors"
+                >
+                    <span className="font-semibold text-stone-900 text-sm">Order Summary</span>
+                    <ChevronDown className={`w-4 h-4 text-stone-400 transition-transform ${summaryOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {summaryOpen && (
+                    <div className="border-t border-stone-100 bg-white">
+                        {/* Items */}
+                        {items.map((item, i) => (
+                            <div key={item.variantId ?? i} className="flex items-center gap-4 px-5 py-4 border-b border-stone-100 last:border-b-0">
+                                <div className="relative shrink-0 w-14 h-16 bg-stone-100 rounded overflow-hidden border border-stone-200">
+                                    {item.imageUrl && (
+                                        <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
+                                    )}
+                                    <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-stone-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                                        {item.quantity}
+                                    </span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-stone-900 leading-snug">{item.productName}</p>
+                                    {item.variantLabel && <p className="text-xs text-stone-400 mt-0.5">{item.variantLabel}</p>}
+                                    <p className="text-xs text-stone-400 mt-0.5">Qty: {item.quantity}</p>
+                                </div>
+                                <span className="text-sm font-semibold text-stone-900 shrink-0">₦{fmt(item.price * item.quantity)}</span>
+                            </div>
+                        ))}
+
+                        {/* Totals */}
+                        <div className="px-5 py-4 flex flex-col gap-2 border-t border-stone-100 bg-stone-50">
+                            <div className="flex justify-between text-sm text-stone-500">
+                                <span>Subtotal</span><span>₦{fmt(subtotal)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm text-stone-500">
+                                <span>Shipping</span><span>₦{fmt(shippingFee)}</span>
+                            </div>
+                            <div className="flex justify-between text-base font-bold text-stone-900 pt-2 border-t border-stone-200 mt-1">
+                                <span>Total</span><span>₦{fmt(total)}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Delivery Details ── */}
+            {shippingAddress && (
+                <div className="w-full max-w-xl border border-stone-200 rounded-xl overflow-hidden mb-10">
+                    <div className="px-5 py-4 bg-white">
+                        <h3 className="font-semibold text-stone-900 text-sm mb-3">Delivery Details</h3>
+                        <div className="flex items-start gap-3 text-sm text-stone-600">
+                            <Truck className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-xs text-stone-400 uppercase tracking-widest mb-1">Shipping to</p>
+                                <p className="font-medium text-stone-800">{shipping?.firstName} {shipping?.lastName}</p>
+                                <p className="text-stone-500">{shippingAddress}</p>
+                                {shipping?.phone && <p className="text-stone-500">{shipping.phone}</p>}
+                            </div>
+                        </div>
+                        {shipping?.shippingMethod && (
+                            <div className="flex items-start gap-3 mt-4 text-sm text-stone-600">
+                                <ShieldCheck className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-xs text-stone-400 uppercase tracking-widest mb-1">Shipping method</p>
+                                    <p className="font-medium text-stone-800">
+                                        {shipping.shippingMethod === 'express' ? 'Express Delivery (2–3 business days)' : 'Standard Delivery'}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Payment note ── */}
+            <div className="w-full max-w-xl bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 mb-8 text-sm text-amber-800">
+                <p className="font-semibold mb-1">⏳ Payment confirmation pending</p>
+                <p className="leading-relaxed">
+                    We are currently verifying your bank transfer. You will receive another email once your payment has been confirmed or if further action is required.
+                </p>
+            </div>
+
+            {/* ── CTA ── */}
+            <a
+                href="/"
+                className="bg-[#4d0011] hover:bg-[#3a000c] text-white px-10 py-3.5 text-xs uppercase tracking-widest font-medium transition-colors rounded-sm"
+            >
+                Return to Homepage
+            </a>
+        </div>
+    )
+}
+
 function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
-    const [selected, setSelected] = useState('paystack')
+    const [selected, setSelected] = useState('bank_transfer')
     const [placing, setPlacing] = useState(false)
-    const [placed, setPlaced] = useState(false)
 
     const shippingPrice = shipping.shippingPrice ?? 0
     const total = subtotal + shippingPrice
@@ -449,57 +598,81 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
     const handlePlace = async () => {
         setPlacing(true);
         try {
-            // Send ONLY variantId + quantity — never prices
-            const cartItems = items.map(item => ({
-                variantId: item.variantId,
-                quantity: item.quantity,
-            }));
-
-            const payload = {
-                items: cartItems,
-                shippingMethod: shipping.shippingMethod ?? "standard",
+            // Step 1: Initialize checkout with Remita to generate RRR
+            const initResponse = await apiPost('/api/checkout/init', {
+                items: items.map(item => ({
+                    variantId: item.variantId,
+                    quantity: item.quantity,
+                })),
+                shippingMethod: shipping.shippingMethod,
                 email: contact.email,
                 payerName: `${shipping.firstName} ${shipping.lastName}`,
                 payerEmail: contact.email,
                 payerPhone: shipping.phone,
-                description: "Order payment for Jorji Mara",
-                paymentMethod: selected,
-                shipping: shipping, // Include full shipping object
-                subtotal: subtotal,
+                description: `Jorji Mara Apparel Order`,
+                paymentMethod: 'remita',
+            });
+
+            if (!initResponse.success || !initResponse.rrr) {
+                throw new Error('Failed to generate payment reference');
+            }
+
+            // Step 2: Send confirmation email
+            try {
+                await apiPost('/api/checkout/confirm', {
+                    email: contact.email,
+                    full_name: `${shipping.firstName} ${shipping.lastName}`,
+                    shipping: {
+                        address: shipping.address,
+                        apartment: shipping.apartment,
+                        city: shipping.city,
+                        state: shipping.state,
+                        phone: shipping.phone,
+                        method: shipping.shippingMethod === 'express' ? 'Express Delivery Within Abuja' : 'Delivery Outside Abuja',
+                    },
+                    items: items.map(item => ({
+                        productName: item.productName,
+                        variantLabel: item.variantLabel,
+                        quantity: item.quantity,
+                        price: item.price,
+                        imageUrl: item.imageUrl,
+                    })),
+                    subtotal,
+                    shippingFee: shippingPrice,
+                    total,
+                });
+            } catch (err) {
+                console.error("Failed to send email", err);
+            }
+
+            // Step 3: Trigger Remita payment widget with the RRR
+            makePayment(initResponse.rrr, {
+                email: contact.email,
+                payerName: `${shipping.firstName} ${shipping.lastName}`,
+                payerPhone: shipping.phone,
+                shipping: {
+                    address: shipping.address,
+                    apartment: shipping.apartment,
+                    city: shipping.city,
+                    state: shipping.state,
+                },
+                shippingMethod: shipping.shippingMethod,
+                items: items.map(item => ({
+                    variantId: item.variantId,
+                    quantity: item.quantity,
+                })),
+                subtotal,
                 shippingFee: shippingPrice,
-                total: total,
-            }
+                total,
+            });
 
-            const result = await apiPost("/api/checkout/init", payload);
-
-            if (selected === 'remita'){
-                makePayment(result.rrr, payload)
-            }
-        } catch (err) {
-            console.error("[Checkout]", err);
             setPlacing(false);
-            // TODO: ADD A USER FACE CONSOLE
+        } catch (err) {
+            console.error("[Checkout Payment Error]", err);
+            alert('Payment initialization failed. Please try again.');
+            setPlacing(false);
         }
     };
-
-    if (placed) {
-        return (
-            <div className="flex flex-col items-center gap-5 py-12 text-center">
-                <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center">
-                    <Check className="w-7 h-7 text-green-600" />
-                </div>
-                <div>
-                    <h2 className="text-xl font-serif font-light text-stone-900 mb-1">Order placed!</h2>
-                    <p className="text-sm text-stone-500">
-                        A confirmation will be sent to <strong className="text-stone-700">{contact.email}</strong>
-                    </p>
-                </div>
-                <a href="/products" className="mt-4 bg-[#4d0011] text-white px-8 py-3 text-xs uppercase tracking-widest font-medium hover:bg-[#3a000c] transition-colors">
-                    Continue shopping
-                </a>
-            </div>
-        )
-    }
 
     return (
         <div className="flex flex-col gap-6">
@@ -548,15 +721,19 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
 
                             {/* Logo Container - Constrained size */}
                             <div className="w-full h-8 flex items-center justify-center">
-                                <img
-                                    src={pm.icon}
-                                    alt={pm.label}
-                                    className={`max-w-[80%] max-h-full object-contain transition-all duration-300 ${
-                                        selected === pm.id
-                                            ? 'grayscale-0 opacity-100'
-                                            : 'grayscale opacity-50 group-hover:opacity-80'
-                                    }`}
-                                />
+                                {pm.icon ? (
+                                    <img
+                                        src={pm.icon}
+                                        alt={pm.label}
+                                        className={`max-w-[80%] max-h-full object-contain transition-all duration-300 ${
+                                            selected === pm.id
+                                                ? 'grayscale-0 opacity-100'
+                                                : 'grayscale opacity-50 group-hover:opacity-80'
+                                        }`}
+                                    />
+                                ) : (
+                                    <span className="text-sm font-medium text-stone-900">{pm.label}</span>
+                                )}
                             </div>
 
                             <input
@@ -569,6 +746,16 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                         </label>
                     ))}
                 </div>
+
+                {selected === 'bank_transfer' && (
+                    <div className="mt-4 p-4 bg-stone-50 border border-stone-200 rounded-lg text-sm text-stone-700">
+                        <p className="font-medium text-stone-900 mb-2">Please make a transfer to the following account:</p>
+                        <p><strong>Bank:</strong> Stanbic IBTC</p>
+                        <p><strong>Account Number:</strong> 0081688464</p>
+                        <p><strong>Account Name:</strong> Jorji Mara Apparel</p>
+                        <p className="mt-2 text-xs text-stone-500">Click "I have paid" below after making the transfer.</p>
+                    </div>
+                )}
             </div>
 
             {/* Total */}
@@ -605,12 +792,12 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                     {placing ? (
                         <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Processing…
+                            Confirming…
                         </>
                     ) : (
                         <>
-                            <Lock className="w-4 h-4" />
-                            Pay ₦{fmt(total)}
+                            <Check className="w-4 h-4" />
+                            I have paid ₦{fmt(total)}
                         </>
                     )}
                 </button>
@@ -623,6 +810,26 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
 export default function Checkout() {
     const navigate = useNavigate()
     const { items, subtotal, clearCart } = useCart()
+
+    // ─── Buy It Now session override ───
+    const buyNowItemRaw = sessionStorage.getItem('jm_buy_now')
+    const buyNowItem = useMemo(() => {
+        try {
+            return buyNowItemRaw ? JSON.parse(buyNowItemRaw) : null
+        } catch {
+            return null
+        }
+    }, [buyNowItemRaw])
+
+    const checkoutItems = buyNowItem ? [buyNowItem] : items
+    const checkoutSubtotal = buyNowItem ? buyNowItem.price * buyNowItem.quantity : subtotal
+
+    // Clean up buy now session when leaving checkout
+    useEffect(() => {
+        return () => {
+            sessionStorage.removeItem('jm_buy_now');
+        };
+    }, []);
 
     const [step, setStep] = useState(0)
     const [summaryOpen, setSummaryOpen] = useState(false)
@@ -640,12 +847,28 @@ export default function Checkout() {
     const updateContact = (key, val) => setContact(c => ({ ...c, [key]: val }))
     const updateShipping = (key, val) => setShipping(s => ({ ...s, [key]: val }))
 
+    // Snapshot of the order taken at the moment "I have paid" is clicked,
+    // before clearCart() wipes the live cart data.
+    const [orderSnapshot, setOrderSnapshot] = useState(null)
+
     const handlePlaced = () => {
-        clearCart()
+        const fee = shipping.shippingPrice ?? 0
+        setOrderSnapshot({
+            items: [...checkoutItems],
+            subtotal: checkoutSubtotal,
+            shippingFee: fee,
+            total: checkoutSubtotal + fee,
+        })
+        setStep(3)
+        if (buyNowItem) {
+            sessionStorage.removeItem('jm_buy_now')
+        } else {
+            clearCart()
+        }
     }
 
     // Redirect if cart is empty (and not in the "placed" success state)
-    if (items.length === 0 && step < 3) {
+    if (checkoutItems.length === 0 && step !== 3) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center gap-5 font-[Bricolage_Grotesque] text-stone-500">
                 <svg className="w-12 h-12 text-stone-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
@@ -682,12 +905,14 @@ export default function Checkout() {
                 {/* ── LEFT: Forms ── */}
                 <div>
                     {/* Mobile order summary toggle */}
-                    <OrderSummary
-                        items={items}
-                        subtotal={subtotal}
-                        collapsed={!summaryOpen}
-                        onToggle={() => setSummaryOpen(v => !v)}
-                    />
+                    {step !== 3 && (
+                        <OrderSummary
+                            items={checkoutItems}
+                            subtotal={checkoutSubtotal}
+                            collapsed={!summaryOpen}
+                            onToggle={() => setSummaryOpen(v => !v)}
+                        />
+                    )}
 
                     {/* Express checkout — only show on step 0 */}
                     {/*{step === 0 && <ExpressCheckout />}*/}
@@ -720,10 +945,21 @@ export default function Checkout() {
                                 <StepPayment
                                     contact={contact}
                                     shipping={shipping}
-                                    subtotal={subtotal}
-                                    items={items}
+                                    subtotal={checkoutSubtotal}
+                                    items={checkoutItems}
                                     onBack={(s) => setStep(typeof s === 'number' ? s : 1)}
                                     onPlace={handlePlaced}
+                                />
+                            )}
+                            {step === 3 && (
+                                <StepSuccess
+                                    email={contact.email}
+                                    contact={contact}
+                                    items={orderSnapshot?.items ?? []}
+                                    shipping={shipping}
+                                    subtotal={orderSnapshot?.subtotal ?? 0}
+                                    shippingFee={orderSnapshot?.shippingFee ?? 0}
+                                    total={orderSnapshot?.total ?? 0}
                                 />
                             )}
                         </motion.div>
@@ -737,14 +973,16 @@ export default function Checkout() {
                 </div>
 
                 {/* ── RIGHT: Order summary (desktop) ── */}
-                <aside className="hidden lg:block border-l border-stone-100 pl-12">
-                    <div className="sticky top-8">
-                        <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-6">
-                            Order summary ({items.length} {items.length === 1 ? 'item' : 'items'})
-                        </h3>
-                        <SummaryItems items={items} subtotal={subtotal} />
-                    </div>
-                </aside>
+                {step !== 3 && (
+                    <aside className="hidden lg:block border-l border-stone-100 pl-12">
+                        <div className="sticky top-8">
+                            <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-6">
+                                Order summary ({checkoutItems.length} {checkoutItems.length === 1 ? 'item' : 'items'})
+                            </h3>
+                            <SummaryItems items={checkoutItems} subtotal={checkoutSubtotal} />
+                        </div>
+                    </aside>
+                )}
             </div>
         </div>
     )

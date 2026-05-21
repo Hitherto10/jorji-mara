@@ -35,19 +35,6 @@ const ShippingAndReturns = () => {
                         </div>
                     </section>
 
-                    {/* Section: Returns & Refunds */}
-                    <section className={`font-[Bricolage_Grotesque]`}>
-                        <h2 className="text-4xl md:text-5xl font-[Newsreader] mb-12 text-stone-900 tracking-tight ">
-                            Returns & Refunds
-                        </h2>
-
-                        <div className="space-y-6 text-[15px] leading-relaxed tracking-wide text-stone-600">
-                            <p>
-                                Due to the handmade and limited nature of our pieces, we are unable to accept returns or offer refunds once an order has been placed. Please review product details and sizing carefully before purchasing. If you have any questions prior to checkout, we’re more than happy to help.
-                            </p>
-                        </div>
-                    </section>
-
                 </div>
             </div>
 

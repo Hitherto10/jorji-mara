@@ -297,8 +297,8 @@ router.post('/', async (c) => {
 		});
 	}
 
-	const SHIPPING_FEES = { standard: 2500, express: 5000 };
-	const shippingFee   = SHIPPING_FEES[shipping.shippingMethod ?? 'standard'] ?? 2500;
+	const SHIPPING_FEES = { express: 5000, 'other-states': 8000 };
+	const shippingFee   = SHIPPING_FEES[shipping.shippingMethod ?? 'express'] ?? 5000;
 	const total         = subtotal + shippingFee;
 
 	// Cross-check: the amount Remita says was paid should roughly match our total

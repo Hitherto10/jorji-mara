@@ -302,7 +302,7 @@ export default function QuickViewModal() {
             productId: product.id,
             productName: product.name,
             slug: product.slug,
-            // variantLabel: buildVariantLabel(selectedVariant),
+            variantLabel: [selectedVariant.color, selectedVariant.size, selectedVariant.option_value].filter(Boolean).join(' / '),
             price: selectedVariant?.price ?? product?.price ?? 0,
             imageUrl: displayImages[0]?.url ?? null,
             quantity,

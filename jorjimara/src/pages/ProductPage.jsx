@@ -295,6 +295,23 @@ export default function ProductPage() {
         setQuantity(1);
     };
 
+    const handleBuyItNow = () => {
+        if (!selectedVariant || isOutOfStock) return;
+        const buyNowItem = {
+            variantId: selectedVariant.id,
+            productId: product.id,
+            productName: product.name,
+            slug: product.slug,
+            variantLabel: [selectedVariant.color, selectedVariant.size, selectedVariant.option_value].filter(Boolean).join(' / '),
+            price: selectedVariant.price ?? product.price ?? 0,
+            imageUrl: displayImages[0]?.url ?? null,
+            quantity,
+            stock: selectedVariant.stock ?? 99,
+        };
+        sessionStorage.setItem('jm_buy_now', JSON.stringify(buyNowItem));
+        navigate('/checkout');
+    };
+
     // ── Content sections from DB ──────────────────────────────────────────
     const contentSections = product?.content_sections ?? {};
 
@@ -566,6 +583,7 @@ export default function ProductPage() {
                         {/* Buy it now */}
                         <button
                             disabled={isOutOfStock || !selectedVariant}
+                            onClick={handleBuyItNow}
                             className={`w-full h-12 text-sm tracking-widest uppercase font-medium transition-all ${isOutOfStock || !selectedVariant
                                     ? 'bg-stone-100 text-stone-400 cursor-not-allowed'
                                     : 'bg-[#4d0011] text-white hover:bg-[#3a000c]'
