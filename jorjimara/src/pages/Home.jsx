@@ -195,67 +195,67 @@ export default function Home() {
                 </h2>
             </div>
 
-            <section className="font-[Bricolage_Grotesque] max-w-7xl mx-auto px-4 md:px-6 py-12">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div
-                        className="relative group overflow-hidden rounded-sm min-h-75 md:min-h-100 lg:min-h-125 flex items-center justify-center text-center">
-                        <div className="absolute inset-0">
-                            <img
-                                src="https://impulse-theme-apparel.myshopify.com/cdn/shop/files/zoe-NKjIT7u5nXE-unsplash_4731e75f-58b0-4df0-ad47-2812433d6154.png?v=1697225826&width=1200"
-                                alt="Limited time"
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                loading="lazy"
-                            />
-                            <div className="absolute inset-0 bg-black/10" />
-                        </div>
-                        <div className="relative z-10 p-6 text-white">
-                            <p className="italic text-sm md:text-base mb-1">Limited time</p>
-                            <h2 className="text-3xl md:text-4xl font-bold mb-4">The Original.</h2>
-                            <a href="/collections/apparel"
-                                className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
-                                View variations
-                            </a>
-                        </div>
-                    </div>
+            {/*<section className="font-[Bricolage_Grotesque] max-w-7xl mx-auto px-4 md:px-6 py-12">*/}
+            {/*    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">*/}
+            {/*        <div*/}
+            {/*            className="relative group overflow-hidden rounded-sm min-h-75 md:min-h-100 lg:min-h-125 flex items-center justify-center text-center">*/}
+            {/*            <div className="absolute inset-0">*/}
+            {/*                <img*/}
+            {/*                    src="https://impulse-theme-apparel.myshopify.com/cdn/shop/files/zoe-NKjIT7u5nXE-unsplash_4731e75f-58b0-4df0-ad47-2812433d6154.png?v=1697225826&width=1200"*/}
+            {/*                    alt="Limited time"*/}
+            {/*                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"*/}
+            {/*                    loading="lazy"*/}
+            {/*                />*/}
+            {/*                <div className="absolute inset-0 bg-black/10" />*/}
+            {/*            </div>*/}
+            {/*            <div className="relative z-10 p-6 text-white">*/}
+            {/*                <p className="italic text-sm md:text-base mb-1">Limited time</p>*/}
+            {/*                <h2 className="text-3xl md:text-4xl font-bold mb-4">The Original.</h2>*/}
+            {/*                <a href="/collections/apparel"*/}
+            {/*                    className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">*/}
+            {/*                    View variations*/}
+            {/*                </a>*/}
+            {/*            </div>*/}
+            {/*        </div>*/}
 
-                    <div
-                        className="relative group overflow-hidden rounded-sm min-h-[300px] md:min-h-[400px] lg:min-h-[500px] flex items-end justify-end text-right">
-                        <div className="absolute inset-0">
-                            <img
-                                src="https://impulse-theme-apparel.myshopify.com/cdn/shop/files/natalia-blauth-Y5NnPfnuOjA-unsplash_3b1fb8ed-c2bd-42c2-8b82-62dcf57f77b3.png?v=1697227800&width=1200"
-                                alt="N&F"
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                loading="lazy"
-                            />
-                            <div className="absolute inset-0 bg-black/10" />
-                        </div>
-                        <div className="relative z-10 p-8 text-white">
-                            <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Now stocking<br />J~M</h2>
-                            <a href="/collections/naked-and-famous"
-                                className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">
-                                Shop Jorji Mara
-                            </a>
-                        </div>
-                    </div>
+            {/*        <div*/}
+            {/*            className="relative group overflow-hidden rounded-sm min-h-[300px] md:min-h-[400px] lg:min-h-[500px] flex items-end justify-end text-right">*/}
+            {/*            <div className="absolute inset-0">*/}
+            {/*                <img*/}
+            {/*                    src="https://impulse-theme-apparel.myshopify.com/cdn/shop/files/natalia-blauth-Y5NnPfnuOjA-unsplash_3b1fb8ed-c2bd-42c2-8b82-62dcf57f77b3.png?v=1697227800&width=1200"*/}
+            {/*                    alt="N&F"*/}
+            {/*                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"*/}
+            {/*                    loading="lazy"*/}
+            {/*                />*/}
+            {/*                <div className="absolute inset-0 bg-black/10" />*/}
+            {/*            </div>*/}
+            {/*            <div className="relative z-10 p-8 text-white">*/}
+            {/*                <h2 className="text-3xl md:text-4xl font-bold mb-4 leading-tight">Now stocking<br />J~M</h2>*/}
+            {/*                <a href="/collections/naked-and-famous"*/}
+            {/*                    className="inline-block bg-[#362119] text-white px-6 py-3 text-sm font-medium uppercase tracking-wider hover:bg-opacity-90 transition-colors">*/}
+            {/*                    Shop Jorji Mara*/}
+            {/*                </a>*/}
+            {/*            </div>*/}
+            {/*        </div>*/}
 
-                    <div
-                        className="relative group overflow-hidden rounded-sm    min-h-50 md:min-h-70 md:col-span-2 flex items-end justify-start text-left">
-                        <div className="absolute inset-0">
-                            <img
-                                src={Images.wideImage}
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                                loading="lazy"
-                                alt="Your Style"
-                            />
-                            <div className="absolute inset-0 bg-black/20" />
-                        </div>
-                        <div className="relative z-10 p-8 text-white">
-                            <h2 className="text-3xl md:text-4xl font-bold mb-1">Your Style. <br /> Your Happy Place</h2>
-                            <p className="text-sm md:text-base mb-4 opacity-90">Cozy, Comfortable, Luxury.</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            {/*        <div*/}
+            {/*            className="relative group overflow-hidden rounded-sm    min-h-50 md:min-h-70 md:col-span-2 flex items-end justify-start text-left">*/}
+            {/*            <div className="absolute inset-0">*/}
+            {/*                <img*/}
+            {/*                    src={Images.wideImage}*/}
+            {/*                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"*/}
+            {/*                    loading="lazy"*/}
+            {/*                    alt="Your Style"*/}
+            {/*                />*/}
+            {/*                <div className="absolute inset-0 bg-black/20" />*/}
+            {/*            </div>*/}
+            {/*            <div className="relative z-10 p-8 text-white">*/}
+            {/*                <h2 className="text-3xl md:text-4xl font-bold mb-1">Your Style. <br /> Your Happy Place</h2>*/}
+            {/*                <p className="text-sm md:text-base mb-4 opacity-90">Cozy, Comfortable, Luxury.</p>*/}
+            {/*            </div>*/}
+            {/*        </div>*/}
+            {/*    </div>*/}
+            {/*</section>*/}
 
             {/* CollectionsShowcase — driven by useCollections() inside the component.
                 Update useHomeData.js as per Section 7.2 of the migration guide
@@ -268,20 +268,20 @@ export default function Home() {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-12 md:gap-16 lg:gap-24">
                     <div className="w-full md:w-[50%] lg:w-[45%] flex flex-col gap-6 md:gap-8">
                         <div className="mb-4 space-y-2 text-center md:text-left">
-                            <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-stone-500">made
-                                with care</p>
+                            {/*<p className="text-[10px] md:text-[11px] font-bold uppercase tracking-[0.2em] text-stone-500">made*/}
+                            {/*    with care</p>*/}
                             <h2 className="font-serif text-4xl md:text-5xl lg:text-6xl font-extralight tracking-tight leading-tight">
                                 <span className="text-[#4d0011]">Hi, I'm Jorji</span>
                             </h2>
                         </div>
                         <div className="relative grid grid-cols-12 items-start gap-4">
-                            <div className="col-span-12 group relative aspect-[3/4] overflow-hidden bg-white shadow-xl">
+                            <div className="col-span-12 group relative aspect-3/4 overflow-hidden bg-white shadow-xl">
                                 <img
-                                    src={Images.jorjiImage}
+                                    src={`https://res.cloudinary.com/duqj7bubb/image/upload/v1779484225/who-is-mara_vkgur4.jpg`}
                                     alt="Jorji"
                                     className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+                                <div className="absolute inset-0 bg-linear-to-t from-black/10 to-transparent" />
                             </div>
                         </div>
                     </div>
@@ -289,16 +289,12 @@ export default function Home() {
                     <div
                         className="w-full md:w-[50%] flex flex-col items-center md:items-start text-center md:text-left gap-8">
                         <div className="space-y-6 text-base md:text-lg leading-[1.8] text-stone-700 max-w-125">
-                            <p>The one-woman team behind this little knit and crochet label. Every piece is handmade in
-                                small batches using mostly natural fibres with a focus on <span
-                                    className="font-normal text-stone-900">soft textures, easy silhouettes, and embodying the "made with love" feeling.</span>
+                            <p>The one-woman team behind this crochet and knitwear brand. I’ve been crocheting for years, driven by a love for fashion and the feeling of wanting pieces I could never quite find anywhere else. Eventually, <span
+                                    className="font-normal text-stone-900">I decided to start making them myself, and over time, that passion grew into something I wanted to share with others.</span>
                             </p>
-                            <p>Think cute, feminine pieces with a dreamy twist, the kind that make you stand out without
-                                even trying.</p>
-                            <p>Each item is crafted slowly, thoughtfully, and meant to be worn, lived in, and loved for
-                                a long time.</p>
-                            <p className="text-xs md:text-sm font-medium italic text-stone-600 tracking-wide mt-10">Thanks
-                                so much for stopping by my store, it really means the world that you're here.</p>
+                            <p>Every piece is handmade slowly and thoughtfully by me, using my own two hands and mostly natural fibres. I’m drawn to soft textures, dreamy colours, and clothing that feels special the moment you put it on. The kind of pieces that make you stand out effortlessly and feel a little more like yourself.</p>
+
+                            <p className="text-xs md:text-sm font-medium italic text-stone-600 tracking-wide mt-10">Thank you so much for being here and supporting my work. It truly means more than you know..</p>
                         </div>
                         <a href="/products"
                             className="inline-block w-full text-center md:w-auto mt-8 bg-[#4D0011] text-white text-xs font-bold uppercase tracking-[0.2em] px-12 py-4 shadow-lg hover:bg-stone-800 transition-colors duration-300">
@@ -310,7 +306,7 @@ export default function Home() {
 
             {/* instagram Highlight Section */}
             <section>
-                <ScrollHorizontal />
+                {/*<ScrollHorizontal />*/}
             </section>
 
             <Footer />

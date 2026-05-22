@@ -57,7 +57,7 @@ catalog.get("/collections", async (c) => {
         "hair-accessories": { number: "01.", heading: "The Essential", headingEm: "Final Touch" },
         "cardigans": { number: "02.", heading: "Layered in", headingEm: "Softness" },
         "matching-sets": { number: "03.", heading: "Effortless", headingEm: "Coordinates" },
-        "hats": { number: "04.", heading: "Sun-Kissed", headingEm: "Protection" },
+        "hats": { number: "04.", heading: "Soft Finishing", headingEm: "Touches" },
     };
 
 

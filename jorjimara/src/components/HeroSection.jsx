@@ -6,6 +6,7 @@ import Header, { HeaderDrawer, CartIcon } from "./Header.jsx";
 import CartDrawer from "./cart/CartDrawer.jsx";
 import SearchOverlay from './SearchOverlay.jsx'
 import { Menu, Search, UserRound } from "lucide-react";
+import banner from "../assets/images/banner.png";
 
 export default function HeroSection() {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -26,9 +27,9 @@ export default function HeroSection() {
         <div className="relative h-[110vh]">
             <section className="relative h-screen w-full overflow-hidden">
                 <div className="absolute inset-0 z-0">
-                    <img src={Images.heroimage} alt="Hero" className="w-full h-full object-cover" />
+                    <img src={Images.banner} alt="Hero" className="w-full h-full object-cover" />
                 </div>
-                <div className="absolute inset-0 z-0 bg-[#332E2C]/40" />
+                <div className="absolute inset-0 z-0 bg-[#332E2C]/50" />
 
                 <div className="z-50 absolute flex items-center justify-between w-full px-10 lg:px-40 py-4 text-white">
                     <nav className="hidden md:flex items-center space-x-8 font-[Inter]">
@@ -49,7 +50,7 @@ export default function HeroSection() {
                                 <Search className="w-5 h-5" />
                             </button>
                             <CartIcon onClick={() => setCartOpen(true)} className="w-6 h-6" />
-                            <UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />
+                            {/*<UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />*/}
                         </div>
                     </nav>
                 </div>
@@ -70,9 +71,9 @@ export default function HeroSection() {
                     <img src={Images.white_logo} alt="Jorji Mara" className="w-full md:w-290 h-auto object-contain" />
                 </motion.div>
 
-                <div className="absolute text-white bottom-16 left-1/2 -translate-x-1/2 text-center z-20 flex flex-col items-center space-y-6 whitespace-nowrap">
-                    <span className="uppercase tracking-widest text-lg font-[Inter]">New Collection</span>
-                    <em className="font-[Newsreader] text-6xl text-wrap italic">Courtside Capsule</em>
+                <div className="absolute text-white bottom-36 left-1/2 -translate-x-1/2 text-center z-20 flex flex-col items-center space-y-6 whitespace-nowrap">
+                    {/*<span className="uppercase tracking-widest text-lg font-[Inter]">New Collection</span>*/}
+                    {/*<em className="font-[Newsreader] text-6xl text-wrap italic">Courtside Capsule</em>*/}
                     <a href="/products" className="bg-white text-black px-10 py-3 text-sm uppercase font-[Bricolage_Grotesque] rounded-sm font-[450] hover:bg-neutral-200 transition">
                         Shop Now
                     </a>

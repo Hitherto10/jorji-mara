@@ -39,7 +39,7 @@ export default function CollectionsShowcase() {
                         {/* Nav */}
                         <nav className="flex flex-col gap-2">
                             <p className="text-xs tracking-widest uppercase text-stone-400 font-medium mb-4">
-                                Our Collections
+                                Featured Categories
                             </p>
                             <ul className="list-none flex flex-col m-0 p-0">
                                 {collections.map((col, i) => (
@@ -94,7 +94,7 @@ export default function CollectionsShowcase() {
                                         {col.description}
                                     </p>
                                     <a
-                                        href={col.href}
+                                        href={`/products`}
                                         className="self-start text-xs tracking-widest uppercase font-medium text-stone-900 border-b border-stone-900 pb-0.5 hover:text-stone-500 hover:border-stone-500 transition-colors"
                                     >
                                         Shop all items

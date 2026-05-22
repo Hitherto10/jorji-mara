@@ -50,9 +50,9 @@ const contactDetails = [
 ]
 
 const socials = [
-    { label: 'Instagram', href: 'https://instagram.com', icon: <InstagramIcon /> },
-    { label: 'TikTok', href: 'https://tiktok.com', icon: <TikTokIcon /> },
-    { label: 'Pinterest', href: 'https://pinterest.com', icon: <PinterestIcon /> },
+    { label: 'Instagram', href: 'https://instagram.com/jorji.mara', icon: <InstagramIcon /> },
+    { label: 'TikTok', href: 'https://tiktok.com/@jorji.mara', icon: <TikTokIcon /> },
+    { label: 'Pinterest', href: 'https://pinterest.com/jorjimara', icon: <PinterestIcon /> },
 ]
 
 // ─── Animated field ───────────────────────────────────────────────────────────
@@ -333,7 +333,7 @@ export default function Contact() {
                                                 animate={{ opacity: 1, height: 'auto' }}
                                                 exit={{ opacity: 0, height: 0 }}
                                             >
-                                                Something went wrong — please try again or email us directly at jorjimara@gmail.com
+                                                Please try again or email us directly at jorjimara@gmail.com
                                             </motion.p>
                                         )}
                                     </AnimatePresence>

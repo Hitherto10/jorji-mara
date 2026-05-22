@@ -21,7 +21,7 @@ const ShippingAndReturns = () => {
 
                         <div className="space-y-6 text-[15px] leading-relaxed tracking-wide text-stone-600">
                             <p>
-                                As all our items are handmade, please allow 3-4 weeks for your item to be processed and sent out.
+                                As all our items are handmade, please allow 2-5 weeks for your item to be processed and sent out.
                             </p>
                             <p>
                                 Once your order has shipped, you will receive an email with further information. Delivery times vary depending on your location.

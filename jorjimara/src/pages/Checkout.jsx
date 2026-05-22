@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useRef, useEffect, useMemo, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext.jsx'
 import { Images } from '../components/img.js'
@@ -143,21 +143,21 @@ function SummaryItems({ items, subtotal, discountCode, onDiscountApply }) {
             </ul>
 
             {/* Discount code */}
-            {/*<div className="flex gap-2">*/}
-            {/*    <input*/}
-            {/*        type="text"*/}
-            {/*        value={code}*/}
-            {/*        onChange={e => setCode(e.target.value.toUpperCase())}*/}
-            {/*        placeholder="Discount code or gift card"*/}
-            {/*        className="flex-1 h-10 border border-stone-300 px-3 text-sm outline-none focus:border-stone-900 transition-colors placeholder:text-stone-300"*/}
-            {/*    />*/}
-            {/*    <button*/}
-            {/*        onClick={() => onDiscountApply?.(code)}*/}
-            {/*        className="px-4 h-10 text-xs uppercase tracking-widest font-medium border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors whitespace-nowrap"*/}
-            {/*    >*/}
-            {/*        Apply*/}
-            {/*    </button>*/}
-            {/*</div>*/}
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    value={code}
+                    onChange={e => setCode(e.target.value.toUpperCase())}
+                    placeholder="Discount code or gift card"
+                    className="flex-1 h-10 border border-stone-300 px-3 text-sm outline-none focus:border-stone-900 transition-colors placeholder:text-stone-300"
+                />
+                <button
+                    onClick={() => onDiscountApply?.(code)}
+                    className="px-4 h-10 text-xs uppercase tracking-widest font-medium border border-stone-300 text-stone-700 hover:bg-stone-50 transition-colors whitespace-nowrap"
+                >
+                    Apply
+                </button>
+            </div>
 
             {/* Totals */}
             <div className="flex flex-col gap-2 pt-2 border-t border-stone-100">
@@ -275,8 +275,8 @@ const NIGERIAN_STATES = [
 ].map(s => ({ value: s, label: s || 'State / Region' }))
 
 const SHIPPING_OPTIONS = [
-    { id: 'express', label: 'Express Delivery Within Abuja', detail: '2–3 business days', price: 5000 },
-    { id: 'other-states', label: 'Delivery Outside Abuja', detail: '5–10 business days', price: 8000 },
+    { id: 'express', label: ' Delivery Within Abuja', detail: ' ', price: 5000 },
+    { id: 'other-states', label: 'Delivery Outside Abuja', detail: ' ', price: 8000 },
 ]
 
 function StepShipping({ contact, data, onChange, onNext, onBack }) {
@@ -812,14 +812,18 @@ export default function Checkout() {
     const { items, subtotal, clearCart } = useCart()
 
     // ─── Buy It Now session override ───
-    const buyNowItemRaw = sessionStorage.getItem('jm_buy_now')
-    const buyNowItem = useMemo(() => {
+    // Read from sessionStorage exactly once on mount via useState initializer.
+    // Using a raw sessionStorage.getItem in the render body would re-run on every
+    // re-render (e.g. typing in the email field), causing checkoutItems to flip to
+    // empty mid-session and triggering the empty-cart redirect prematurely.
+    const [buyNowItem] = useState(() => {
         try {
-            return buyNowItemRaw ? JSON.parse(buyNowItemRaw) : null
+            const raw = sessionStorage.getItem('jm_buy_now')
+            return raw ? JSON.parse(raw) : null
         } catch {
             return null
         }
-    }, [buyNowItemRaw])
+    })
 
     const checkoutItems = buyNowItem ? [buyNowItem] : items
     const checkoutSubtotal = buyNowItem ? buyNowItem.price * buyNowItem.quantity : subtotal

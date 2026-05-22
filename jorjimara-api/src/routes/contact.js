@@ -20,8 +20,13 @@ contact.post("/", async (c) => {
     formData.append("email", email.trim());
     formData.append("subject", (subject ?? "Contact Form").trim());
     formData.append("message", message.trim());
+
     const res = await fetch("https://api.web3forms.com/submit", {
         method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Accept: "application/json"
+		},
         body: formData,
     });
     const result = await res.json();

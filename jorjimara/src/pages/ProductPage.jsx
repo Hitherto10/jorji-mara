@@ -4,9 +4,9 @@ import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
 import { Handbag, ExternalLink, Plus, Minus } from 'lucide-react';
 import AddToCartButton from '../components/AddToCartButton.jsx'
-import CartDrawer from '../components/cart/CartDrawer.jsx'
-import { motion } from "motion/react";
-import { apiGet } from '../lib/api.js'   // ← replaces supabase import
+import { motion, AnimatePresence } from "motion/react";
+import { apiGet } from '../lib/api.js'
+import CartDrawer from "../components/cart/CartDrawer.jsx";   // ← replaces supabase import
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -225,6 +225,24 @@ export default function ProductPage() {
 
     const [selections, setSelections] = useState({ size: null, color: null, optionValue: null });
     const [quantity, setQuantity] = useState(1);
+    const [showSizeChart, setShowSizeChart] = useState(false);
+    const sizeChartRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (sizeChartRef.current && !sizeChartRef.current.contains(event.target)) {
+                setShowSizeChart(false);
+            }
+        }
+        if (showSizeChart) {
+            document.addEventListener("mousedown", handleClickOutside);
+            document.addEventListener("touchstart", handleClickOutside);
+        }
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("touchstart", handleClickOutside);
+        };
+    }, [showSizeChart]);
 
     // ── Fetch product data ────────────────────────────────────────────────
     useEffect(() => {
@@ -316,10 +334,29 @@ export default function ProductPage() {
     const contentSections = product?.content_sections ?? {};
 
     const sectionIcons = {
-        'Shipping & Returns': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>,
-        'Composition & Materials': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>,
-        'Details': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" /></svg>,
-        'default': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>,
+        'Shipping & Returns': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                   strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/>
+        </svg>,
+        'Composition & Materials': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                        strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+        </svg>,
+        'Details': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/>
+        </svg>,
+        'default': <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round"
+                  d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+        </svg>,
+        'produceCare': <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path
+                d="M19.414 14.414C21 12.828 22 11.5 22 9.5a5.5 5.5 0 0 0-9.591-3.676.6.6 0 0 1-.818.001A5.5 5.5 0 0 0 2 9.5c0 2.3 1.5 4 3 5.5l5.535 5.362a2 2 0 0 0 2.879.052 2.12 2.12 0 0 0-.004-3 2.124 2.124 0 1 0 3-3 2.124 2.124 0 0 0 3.004 0 2 2 0 0 0 0-2.828l-1.881-1.882a2.41 2.41 0 0 0-3.409 0l-1.71 1.71a2 2 0 0 1-2.828 0 2 2 0 0 1 0-2.828l2.823-2.762"/>
+        </svg>
     };
 
     const getIcon = (title) => {
@@ -400,11 +437,13 @@ export default function ProductPage() {
 
                         {/* ── Size selector ── */}
                         {sizes.length > 0 && (
-                            <div>
-                                <p className="text-xs uppercase tracking-widest text-stone-500 mb-2.5 font-medium">
-                                    Size{selections.size && <span className="normal-case tracking-normal font-normal text-stone-800 ml-2 capitalize">{selections.size}</span>}
-                                </p>
-                                <div className="flex flex-wrap gap-2">
+                            <div className="relative">
+                                <div className="flex justify-between mb-2.5">
+                                    <p className="text-xs uppercase tracking-widest text-stone-500 font-medium">
+                                        Size{selections.size && <span className="normal-case tracking-normal font-normal text-stone-800 ml-2 capitalize">{selections.size}</span>}
+                                    </p>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mb-2.5">
                                     {sizes.map(size => {
                                         const available = activeVariants.some(v =>
                                             (v.size ?? '').toLowerCase() === size.toLowerCase() &&
@@ -430,6 +469,83 @@ export default function ProductPage() {
                                         );
                                     })}
                                 </div>
+                                {/*TODO: Add Size Chart for Each Product*/}
+                                {/*{product.size_chart_id && (*/}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSizeChart(prev => !prev)}
+                                    className="text-xs text-stone-600 underline hover:text-stone-900 transition-colors flex items-center gap-1 font-medium tracking-wide"
+                                >
+                                    Size Chart
+
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                         stroke-linecap="round" stroke-linejoin="round"
+                                         className="w-3.5 h-3.5">
+                                        <path
+                                            d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/>
+                                        <path d="m14.5 12.5 2-2"/>
+                                        <path d="m11.5 9.5 2-2"/>
+                                        <path d="m8.5 6.5 2-2"/>
+                                        <path d="m17.5 15.5 2-2"/>
+                                    </svg>
+                                </button>
+                                {/*)}*/}
+                                <AnimatePresence>
+                                    {showSizeChart && (
+                                        <motion.div
+                                            ref={sizeChartRef}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 10 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="absolute left-0 right-0 md:left-auto md:right-0 w-full md:w-[480px] top-full mt-3 z-30 bg-[#FCFBF9] border border-stone-200 shadow-2xl p-6 text-stone-800 text-left font-[Bricolage_Grotesque]"
+                                        >
+                                            <div className="flex justify-between items-center mb-4 pb-2 border-b border-stone-200">
+                                                <h3 className="font-serif text-base text-stone-900 italic font-medium">Measurements (inches)</h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowSizeChart(false)}
+                                                    className="p-1 hover:bg-stone-100 transition-colors rounded-full"
+                                                    aria-label="Close size chart"
+                                                >
+                                                    <svg className="w-4 h-4 text-stone-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                            <div className="overflow-x-auto pb-1">
+                                                <table className="w-full border-collapse text-xs">
+                                                    <thead>
+                                                        <tr className="border-b border-stone-200">
+                                                            <th className="py-2 px-1 text-left font-serif italic text-stone-400 text-sm">Size</th>
+                                                            {["X-Small", "Small", "Medium", "Large", "X-Large"].map((sz) => (
+                                                                <th key={sz} className="py-2 px-1 text-center font-normal text-[11px] uppercase tracking-wider text-stone-900">{sz}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-stone-100">
+                                                        {[
+                                                            { label: "Bust", values: ["28–30", "32–34", "36–38", "40–42", "44–46"] },
+                                                            { label: "Waist", values: ["23–24", "25–26½", "28–30", "32–34", "36–38"] },
+                                                            { label: "Hips", values: ["33–34", "35–36", "38–40", "42–44", "46–48"] }
+                                                        ].map((row) => (
+                                                            <tr key={row.label} className="hover:bg-stone-50/50 transition-colors">
+                                                                <td className="py-2.5 px-1 font-serif text-sm text-stone-800">{row.label}</td>
+                                                                {row.values.map((val, idx) => (
+                                                                    <td key={idx} className="py-2.5 px-1 text-center text-stone-600 font-light tracking-wide">{val}</td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                            <p className="mt-4 text-[11px] text-stone-500 leading-relaxed italic text-center border-t border-stone-100 pt-3">
+                                                The model for this product is a UK size 10 and is wearing size 'M'
+                                            </p>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         )}
 
@@ -479,7 +595,7 @@ export default function ProductPage() {
                             </div>
                         )}
 
-                        {/* ── Custom option ── */}
+                        {/* ── Product Options ── */}
                         {optionName && optionValues.length > 0 && (
                             <div>
                                 <p className="text-xs uppercase tracking-widest text-stone-500 mb-2.5 font-medium">
@@ -521,12 +637,7 @@ export default function ProductPage() {
                             {' '}for custom orders ♡
                         </p>
 
-                        {product.size_chart_id && (
-                            <button className="self-start flex items-center gap-1.5 text-xs text-stone-600 underline hover:text-stone-900 transition-colors">
-                                Size Chart
-                                <ExternalLink className="w-3 h-3" />
-                            </button>
-                        )}
+
 
                         {/* Stock indicator */}
                         {isOutOfStock ? (
@@ -643,6 +754,25 @@ export default function ProductPage() {
                                     </div>
                                 </AccordionSection>
                             )}
+
+
+                            {contentSections.careInstructions &&(
+                                <AccordionSection
+                                    icon={sectionIcons['produceCare']}
+                                    title="Product Care"
+                                >
+                                    <div className="space-y-4">
+                                        <div>
+                                            <img src={contentSections.careInstructions} alt="Care instructions" className="mb-2 border border-stone-100" />
+                                        </div>
+
+                                        <div>
+                                            <img src={contentSections.laundryGuide} alt="Care instructions" className="mb-2 border border-stone-100" />
+                                        </div>
+                                    </div>
+                                </AccordionSection>
+                            )}
+
                         </div>
 
                     </div>

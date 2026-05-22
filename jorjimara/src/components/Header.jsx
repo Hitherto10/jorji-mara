@@ -120,7 +120,7 @@ export default function Header() {
                     </button>
 
                     <CartIcon onClick={() => setCartOpen(true)} />
-                    <UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />
+                    {/*<UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />*/}
                 </nav>
             </div>
 

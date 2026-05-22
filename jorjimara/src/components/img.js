@@ -13,6 +13,7 @@ import white_logo from '../../../../jorji-admin/src/assets/white-logo.png';
 import remitaLogo from '../assets/images/remitaLogo.png';
 import flutterwaveLogo from '../assets/images/flutterwaveLogo.png';
 import paystackLogo from '../assets/images/paystackLogo.png';
+import banner from '../assets/images/banner.png';
 import post_1 from '../assets/images/instagram/post_1.png';
 import post_2 from '../assets/images/instagram/post_2.png';
 import post_3 from '../assets/images/instagram/post_3.png';
@@ -24,6 +25,7 @@ export const Images = {
     hero_image,
     wideImage,
     coastal_dream_set,
+    banner,
     hats_2,
     remitaLogo,
     paystackLogo,

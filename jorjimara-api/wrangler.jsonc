@@ -81,8 +81,8 @@
 	],
 	"vars": {
 		// Non-sensitive public vars go here
-		// "FRONTEND_ORIGIN": "https://jorjimara.com"
-		"FRONTEND_ORIGIN": "http://localhost:5173"
+		 "FRONTEND_ORIGIN": "https://jorjimara.com"
+//		"FRONTEND_ORIGIN": "http://localhost:5173"
 		// Sensitive secrets are set via: wrangler secret put SECRET_NAME
 		// Never put secrets in wrangler.jsonc
 	}

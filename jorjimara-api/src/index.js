@@ -17,6 +17,7 @@ app.use('*', cors({
 		const allowed = [
 			c.env.FRONTEND_ORIGIN,
 			'https://jorjimara.com',
+			'http://localhost:5173',
 			'http://localhost:5174',
 		];
 		return allowed.includes(origin) ? origin : null;

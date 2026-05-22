@@ -127,7 +127,7 @@ const RefundPolicy = () => {
                                 <ul className="list-disc space-y-3 pl-0">
                                     <li><span className="text-stone-900 font-medium">Email: </span> Jorjimara@gmail.com</li>
                                     <li><span className="text-stone-900 font-medium">Address: </span> 16 Janet Y. Duniya Street, Abuja, Nigeria.</li>
-                                    <li><span className="text-stone-900 font-medium">Website: </span>  https://www.jorjimara.com</li>
+
                                 </ul>
                             </div>
                         </section>
