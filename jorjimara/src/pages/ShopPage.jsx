@@ -5,11 +5,11 @@ import Footer from '../components/Footer.jsx'
 import ProductImageCarousel from '../components/ProductImageCarousel.jsx'
 import { useProducts, useFilterOptions } from '../hooks/useProducts.js'
 import { useQuickView } from '../context/QuickViewContext.jsx'
+import { useCurrency } from '../context/CurrencyContext.jsx'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
 import { SkeletonCard } from '../components/ProductSkeleton.jsx'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(n)
 
 function getActiveVariants(product) {
     return (product.product_variants ?? []).filter(v => v.is_active)
@@ -46,6 +46,7 @@ function getCardImages(product) {
 function ProductCard({ product }) {
     const navigate        = useNavigate()
     const { openQuickView } = useQuickView()
+    const { formatPrice } = useCurrency()
 
     const firstVariant  = getFirstVariant(product)
     const images        = getCardImages(product)
@@ -92,9 +93,9 @@ function ProductCard({ product }) {
             <div className="pt-3 pb-1">
                 <p className="text-sm text-stone-800 leading-snug line-clamp-2">{product.name}</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-sm text-stone-500 font-light">₦{fmt(price)}</span>
+                    <span className="text-sm text-stone-500 font-light">{formatPrice(price)}</span>
                     {product.compare_price && Number(product.compare_price) > price && (
-                        <span className="text-xs text-stone-400 line-through">₦{fmt(product.compare_price)}</span>
+                        <span className="text-xs text-stone-400 line-through">{formatPrice(product.compare_price)}</span>
                     )}
                 </div>
 

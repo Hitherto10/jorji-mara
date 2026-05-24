@@ -7,12 +7,9 @@ import AddToCartButton from '../components/AddToCartButton.jsx'
 import { motion, AnimatePresence } from "motion/react";
 import { apiGet } from '../lib/api.js'
 import CartDrawer from "../components/cart/CartDrawer.jsx";   // ← replaces supabase import
+import { useCurrency } from '../context/CurrencyContext.jsx';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const fmt = (amount) =>
-    new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(Number(amount));
-
 function extractOptions(variants) {
     const sizes = [...new Set(variants.map(v => v.size).filter(Boolean))];
 
@@ -216,6 +213,7 @@ export default function ProductPage() {
     const { slug } = useParams();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
+    const { formatPrice } = useCurrency();
     const [cartOpen, setCartOpen] = useState(false)
     const [product, setProduct] = useState(null);
     const [variants, setVariants] = useState([]);
@@ -425,11 +423,11 @@ export default function ProductPage() {
                             </h1>
                             <div className="flex items-baseline gap-3">
                                 <span className="text-lg font-light text-stone-900">
-                                    ₦{fmt(displayPrice)}
+                                    {formatPrice(displayPrice)}
                                 </span>
                                 {comparePrice && Number(comparePrice) > Number(displayPrice) && (
                                     <span className="text-sm text-stone-400 line-through">
-                                        ₦{fmt(comparePrice)}
+                                        {formatPrice(comparePrice)}
                                     </span>
                                 )}
                             </div>
@@ -479,8 +477,8 @@ export default function ProductPage() {
                                     Size Chart
 
                                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                         stroke-linecap="round" stroke-linejoin="round"
+                                         viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                                         strokeLinecap="round" strokeLinejoin="round"
                                          className="w-3.5 h-3.5">
                                         <path
                                             d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/>
@@ -633,7 +631,7 @@ export default function ProductPage() {
                         {/* Custom orders link */}
                         <p className="text-xs text-stone-500">
                             Kindly contact us{' '}
-                            <a href="mailto:hello@jorjimara.com" className="underline text-stone-700 hover:text-stone-900">here</a>
+                            <a href="/contact" className="underline text-stone-700 hover:text-stone-900">here</a>
                             {' '}for custom orders ♡
                         </p>
 
@@ -708,6 +706,7 @@ export default function ProductPage() {
                             {product.description && (
                                 <AccordionSection icon={sectionIcons['Details']} title="Details" defaultOpen>
                                     <p className="whitespace-pre-line">{product.description}</p>
+                                    <p className="whitespace-pre-line">{`\n`}Ships Out in 2-5 weeks</p>
                                 </AccordionSection>
                             )}
 

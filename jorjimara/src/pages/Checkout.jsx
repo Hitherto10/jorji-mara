@@ -6,12 +6,13 @@ import { Check, ChevronRight, ChevronDown, Lock, X, ShieldCheck, Truck } from 'l
 import { AnimatePresence, motion } from 'motion/react'
 import { apiPost } from '../lib/api.js';
 import remitaLogo from "../assets/images/remitaLogo.png";
+import { SHIPPING_COUNTRIES, NIGERIAN_STATES, getNigeriaFee } from '../hooks/useShipping.js';
 
 // Global ref for makePayment callback
 let globalOnPlaceRef = null;
 
 // ─── Format helpers 
-const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n))
+import { useCurrency } from '../context/CurrencyContext.jsx';
 
 // ─── Step indicator 
 const STEPS = ['Information', 'Shipping', 'Payment']
@@ -89,7 +90,8 @@ function SelectField({ label, id, value, onChange, options, required, error }) {
 }
 
 // ─── Order summary ─
-function OrderSummary({ items, subtotal, collapsed, onToggle }) {
+function OrderSummary({ items, subtotal, shippingFee, collapsed, onToggle }) {
+    const { formatPrice } = useCurrency();
     return (
         <div className="lg:hidden">
             {/* Mobile toggle */}
@@ -104,18 +106,19 @@ function OrderSummary({ items, subtotal, collapsed, onToggle }) {
                     {collapsed ? 'Show order summary' : 'Hide order summary'}
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${collapsed ? '' : 'rotate-180'}`} />
                 </span>
-                <span>₦{fmt(subtotal)}</span>
+                <span>{formatPrice(subtotal)}</span>
             </button>
             {!collapsed && (
                 <div className="py-4 border-b border-stone-200">
-                    <SummaryItems items={items} subtotal={subtotal} />
+                    <SummaryItems items={items} subtotal={subtotal} shippingFee={shippingFee} />
                 </div>
             )}
         </div>
     )
 }
 
-function SummaryItems({ items, subtotal, discountCode, onDiscountApply }) {
+function SummaryItems({ items, subtotal, shippingFee, discountCode, onDiscountApply }) {
+    const { formatPrice } = useCurrency();
     const [code, setCode] = useState('')
     return (
         <div className="flex flex-col gap-5">
@@ -137,7 +140,7 @@ function SummaryItems({ items, subtotal, discountCode, onDiscountApply }) {
                                 <p className="text-xs text-stone-400 mt-0.5">{item.variantLabel}</p>
                             )}
                         </div>
-                        <span className="text-sm text-stone-700 font-medium shrink-0">₦{fmt(item.price * item.quantity)}</span>
+                        <span className="text-sm text-stone-700 font-medium shrink-0">{formatPrice(item.price * item.quantity)}</span>
                     </li>
                 ))}
             </ul>
@@ -163,20 +166,21 @@ function SummaryItems({ items, subtotal, discountCode, onDiscountApply }) {
             <div className="flex flex-col gap-2 pt-2 border-t border-stone-100">
                 <div className="flex justify-between text-sm text-stone-600">
                     <span>Subtotal</span>
-                    <span>₦{fmt(subtotal)}</span>
+                    <span>{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-stone-600">
-                    <span className="flex items-center gap-1">
-                        Shipping
-                        <span className="text-[10px] text-stone-400">(calculated at next step)</span>
-                    </span>
-                    <span className="text-stone-400">—</span>
+                    <span>Shipping</span>
+                    {shippingFee != null
+                        ? <span className="font-medium text-stone-800">{formatPrice(shippingFee)}</span>
+                        : <span className="text-stone-400 text-xs italic">calculated at next step</span>
+                    }
                 </div>
                 <div className="flex justify-between text-base font-semibold text-stone-900 pt-2 border-t border-stone-200">
                     <span>Total</span>
-                    <span>₦{fmt(subtotal)}</span>
+                    <span>{formatPrice(subtotal + (shippingFee ?? 0))}</span>
                 </div>
             </div>
+            <p className="text-[10px] text-stone-400 mt-2 italic">Note: Conversions are estimates. You will be charged in NGN and your bank may apply a different exchange rate.</p>
         </div>
     )
 }
@@ -265,56 +269,107 @@ function StepInformation({ data, onChange, onNext }) {
     )
 }
 
-// ─── Step 2: Shipping
-const NIGERIAN_STATES = [
-    '', 'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue',
-    'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu', 'FCT - Abuja',
-    'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi', 'Kogi',
-    'Kwara', 'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun', 'Oyo',
-    'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara',
-].map(s => ({ value: s, label: s || 'State / Region' }))
-
-const SHIPPING_OPTIONS = [
-    { id: 'express', label: ' Delivery Within Abuja', detail: ' ', price: 5000 },
-    { id: 'other-states', label: 'Delivery Outside Abuja', detail: ' ', price: 8000 },
+// ─── Step 2: Shipping ─────────────────────────────────────────────────────────
+// Country options built at module level (one-time sort, never re-computed)
+const COUNTRY_OPTIONS = [
+    { value: '', label: 'Select your country' },
+    ...SHIPPING_COUNTRIES,
+]
+const NG_STATE_OPTIONS = [
+    { value: '', label: 'Select state' },
+    ...NIGERIAN_STATES,
 ]
 
-function StepShipping({ contact, data, onChange, onNext, onBack }) {
-    const [errors, setErrors] = useState({})
-    const [shipping, setShipping] = useState('standard')
+function StepShipping({ contact, data, onChange, onNext, onBack, items }) {
+    const { formatPrice } = useCurrency();
+    const [errors, setErrors]       = useState({})
+    const [calculating, setCalc]    = useState(false)
+    const [calcError, setCalcError] = useState(null)
+
+    const isNigeria = data.country === 'NG'
+
+    // ── Nigeria: instant flat-fee based on state ─────────────────────────────
+    useEffect(() => {
+        if (data.country !== 'NG') return
+        const fee = getNigeriaFee(data.state)
+        onChange('shippingFee', fee)
+    }, [data.country, data.state])
+
+    // ── International: debounced API call when country + postcode are filled ─
+    useEffect(() => {
+        if (!data.country || data.country === 'NG') return
+        if (!data.postcode || data.postcode.trim().length < 2) return
+
+        const timer = setTimeout(async () => {
+            setCalc(true)
+            setCalcError(null)
+            onChange('shippingFee', null)
+            try {
+                const result = await apiPost('/api/checkout/calculate-shipping', {
+                    items:       items.map(i => ({ variantId: i.variantId, quantity: i.quantity })),
+                    countryCode: data.country,
+                    stateRegion: data.state || '',
+                    postcode:    data.postcode.trim(),
+                })
+                onChange('shippingFee', result.shippingFee)
+            } catch {
+                setCalcError('Could not calculate shipping. Please check your details and try again.')
+                onChange('shippingFee', null)
+            } finally {
+                setCalc(false)
+            }
+        }, 600)
+        return () => clearTimeout(timer)
+    }, [data.country, data.postcode])
 
     const validate = () => {
         const e = {}
         if (!data.firstName) e.firstName = 'Required'
-        if (!data.lastName) e.lastName = 'Required'
-        if (!data.address) e.address = 'Required'
-        if (!data.city) e.city = 'Required'
-        if (!data.state) e.state = 'Required'
-        if (!data.phone) e.phone = 'Required'
+        if (!data.lastName)  e.lastName  = 'Required'
+        if (!data.address)   e.address   = 'Required'
+        if (!data.city)      e.city      = 'Required'
+        if (!data.country)   e.country   = 'Please select a country'
+        if (!data.postcode)  e.postcode  = 'Postcode / ZIP is required'
+        if (!data.phone)     e.phone     = 'Required'
+        if (data.shippingFee == null) {
+            e.shipping = isNigeria
+                ? 'Please select a state to confirm your shipping'
+                : 'Shipping fee could not be calculated — check your country and postcode'
+        }
         return e
     }
 
     const handleNext = () => {
         const e = validate()
         if (Object.keys(e).length) { setErrors(e); return }
-        onChange('shippingMethod', shipping)
-        onChange('shippingPrice', SHIPPING_OPTIONS.find(o => o.id === shipping)?.price ?? 0)
         onNext()
     }
 
+    // Field change helper: clears the matching error
     const f = (key, val) => {
         onChange(key, val)
         setErrors(e => ({ ...e, [key]: '' }))
     }
 
+    // When country changes, reset dependent fields
+    const handleCountryChange = (val) => {
+        onChange('country',     val)
+        onChange('state',       '')
+        onChange('postcode',    '')
+        onChange('shippingFee', null)
+        setErrors({})
+        setCalcError(null)
+    }
+
     return (
         <div className="flex flex-col gap-6">
+
             {/* Contact recap */}
             <div className="border border-stone-200 rounded-sm divide-y divide-stone-200 text-sm">
                 <div className="flex items-center justify-between px-4 py-3">
                     <span className="text-stone-400 text-xs uppercase tracking-widest">Contact</span>
-                    <span className="text-stone-700">{contact.email}</span>
-                    <button onClick={onBack} className="text-xs text-stone-500 underline hover:text-stone-900 ml-4">Change</button>
+                    <span className="text-stone-700 flex-1 truncate mx-3">{contact.email}</span>
+                    <button onClick={onBack} className="text-xs text-stone-500 underline hover:text-stone-900 shrink-0">Change</button>
                 </div>
             </div>
 
@@ -322,49 +377,117 @@ function StepShipping({ contact, data, onChange, onNext, onBack }) {
 
             <div className="grid grid-cols-2 gap-3">
                 <Field label="First name" id="firstName" value={data.firstName} onChange={v => f('firstName', v)} required error={errors.firstName} autoComplete="given-name" />
-                <Field label="Last name" id="lastName" value={data.lastName} onChange={v => f('lastName', v)} required error={errors.lastName} autoComplete="family-name" />
+                <Field label="Last name"  id="lastName"  value={data.lastName}  onChange={v => f('lastName',  v)} required error={errors.lastName}  autoComplete="family-name" />
             </div>
+
             <Field label="Address" id="address" value={data.address} onChange={v => f('address', v)} required error={errors.address} autoComplete="street-address" />
             <Field label="Apartment, suite, etc. (optional)" id="apartment" value={data.apartment} onChange={v => onChange('apartment', v)} autoComplete="address-line2" />
-            <div className="grid grid-cols-2 gap-3">
-                <Field label="City" id="city" value={data.city} onChange={v => f('city', v)} required error={errors.city} autoComplete="address-level2" />
-                <SelectField label="State" id="state" value={data.state} onChange={v => f('state', v)} required error={errors.state} options={NIGERIAN_STATES} />
-            </div>
+            <Field label="City" id="city" value={data.city} onChange={v => f('city', v)} required error={errors.city} autoComplete="address-level2" />
+
+            {/* Country */}
+            <SelectField
+                label="Country / Region"
+                id="country"
+                value={data.country}
+                onChange={handleCountryChange}
+                options={COUNTRY_OPTIONS}
+                required
+                error={errors.country}
+            />
+
+            {/* State / Region — dropdown for NG, free-text for everywhere else */}
+            {isNigeria ? (
+                <SelectField
+                    label="State"
+                    id="state"
+                    value={data.state}
+                    onChange={v => f('state', v)}
+                    options={NG_STATE_OPTIONS}
+                    required
+                    error={errors.state}
+                />
+            ) : (
+                <Field
+                    label="State / Region"
+                    id="state"
+                    value={data.state}
+                    onChange={v => onChange('state', v)}
+                    placeholder="e.g. California, Greater London"
+                    autoComplete="address-level1"
+                />
+            )}
+
+            {/* Postcode / ZIP — always required */}
+            <Field
+                label="Postcode / ZIP"
+                id="postcode"
+                value={data.postcode}
+                onChange={v => { onChange('postcode', v); setErrors(e => ({ ...e, postcode: '' })) }}
+                placeholder=" "
+                autoComplete="postal-code"
+                required
+                error={errors.postcode}
+            />
+
             <Field label="Phone" id="phone" value={data.phone} onChange={v => f('phone', v)} type="tel" required error={errors.phone} autoComplete="tel" />
 
-            {/* Shipping method */}
-            <div>
-                <h2 className="text-sm font-semibold uppercase tracking-widest text-stone-900 mb-3">Shipping method</h2>
-                <div className="flex flex-col gap-2">
-                    {SHIPPING_OPTIONS.map(opt => (
-                        <label
-                            key={opt.id}
-                            className={`flex items-center justify-between px-4 py-3 border cursor-pointer transition-colors ${shipping === opt.id ? 'border-stone-900 bg-stone-50' : 'border-stone-200 hover:border-stone-400'
-                                }`}
-                        >
-                            <div className="flex items-center gap-3">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${shipping === opt.id ? 'border-stone-900' : 'border-stone-300'
-                                    }`}>
-                                    {shipping === opt.id && <div className="w-2 h-2 rounded-full bg-stone-900" />}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-stone-900">{opt.label}</p>
-                                    <p className="text-xs text-stone-400">{opt.detail}</p>
-                                </div>
-                            </div>
-                            <span className="text-sm font-medium text-stone-900">₦{fmt(opt.price)}</span>
-                            <input type="radio" name="shipping" value={opt.id} checked={shipping === opt.id} onChange={() => setShipping(opt.id)} className="sr-only" />
-                        </label>
-                    ))}
+            {/* ── Shipping fee widget ── */}
+            {data.country && (
+                <div className={`rounded-sm border px-4 py-4 transition-all ${
+                    calcError                                        ? 'border-red-200 bg-red-50'
+                    : data.shippingFee != null                       ? 'border-emerald-200 bg-emerald-50'
+                    :                                                  'border-stone-200 bg-stone-50'
+                }`}>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Truck className="w-4 h-4 text-stone-400 shrink-0" />
+                            <span className="text-sm font-medium text-stone-700">
+                                {isNigeria ? 'Domestic Delivery' : 'DHL Express International'}
+                            </span>
+                        </div>
+
+                        <div className="text-sm">
+                            {calculating ? (
+                                <span className="flex items-center gap-2 text-stone-400">
+                                    <div className="w-3.5 h-3.5 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" />
+                                    Calculating…
+                                </span>
+                            ) : data.shippingFee != null ? (
+                                <span className="font-semibold text-emerald-700">{formatPrice(data.shippingFee)}</span>
+                            ) : (
+                                <span className="text-stone-400 text-xs">
+                                    {isNigeria && !data.state    ? 'Select state above'
+                                    : !data.postcode             ? 'Enter postcode above'
+                                    :                              '—'}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {calcError && (
+                        <p className="text-xs text-red-500 mt-2">{calcError}</p>
+                    )}
+                    {errors.shipping && !calcError && (
+                        <p className="text-xs text-red-500 mt-2">{errors.shipping}</p>
+                    )}
                 </div>
-            </div>
+            )}
 
             <div className="flex gap-3">
-                <button onClick={onBack} className="px-5 h-12 text-xs text-stone-500 hover:text-stone-900 border border-stone-200 hover:border-stone-400 uppercase tracking-widest transition-colors">
+                <button
+                    onClick={onBack}
+                    className="px-5 h-12 text-xs text-stone-500 hover:text-stone-900 border border-stone-200 hover:border-stone-400 uppercase tracking-widest transition-colors"
+                >
                     ← Back
                 </button>
-                <button onClick={handleNext} className="flex-1 h-12 bg-[#4d0011] hover:bg-[#3a000c] text-white text-sm tracking-widest uppercase font-medium transition-colors">
-                    Continue to payment
+                <button
+                    onClick={handleNext}
+                    disabled={calculating}
+                    className="flex-1 h-12 bg-[#4d0011] hover:bg-[#3a000c] disabled:bg-stone-400 text-white text-sm tracking-widest uppercase font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                    {calculating ? (
+                        <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Calculating shipping…</>
+                    ) : 'Continue to payment'}
                 </button>
             </div>
         </div>
@@ -407,7 +530,8 @@ function makePayment(rrr, orderData) {
                     city: orderData.shipping?.city || '',
                     state: orderData.shipping?.state || '',
                     phone: orderData.payerPhone,
-                    shippingMethod: orderData.shippingMethod
+                    country: orderData.shipping?.country || '',
+                    shippingMethod: orderData.shipping?.country || '',
                 },
                 items: orderData.items,
                 subtotal: orderData.subtotal,
@@ -451,6 +575,7 @@ function makePayment(rrr, orderData) {
 }
 
 function StepSuccess({ email, items, contact, shipping, subtotal, shippingFee, total }) {
+    const { formatPrice } = useCurrency();
     const [summaryOpen, setSummaryOpen] = useState(true)
     const orderRef = `JM-${Date.now().toString(36).toUpperCase().slice(-8)}`
 
@@ -520,20 +645,20 @@ function StepSuccess({ email, items, contact, shipping, subtotal, shippingFee, t
                                     {item.variantLabel && <p className="text-xs text-stone-400 mt-0.5">{item.variantLabel}</p>}
                                     <p className="text-xs text-stone-400 mt-0.5">Qty: {item.quantity}</p>
                                 </div>
-                                <span className="text-sm font-semibold text-stone-900 shrink-0">₦{fmt(item.price * item.quantity)}</span>
+                                <span className="text-sm font-semibold text-stone-900 shrink-0">{formatPrice(item.price * item.quantity)}</span>
                             </div>
                         ))}
 
                         {/* Totals */}
                         <div className="px-5 py-4 flex flex-col gap-2 border-t border-stone-100 bg-stone-50">
                             <div className="flex justify-between text-sm text-stone-500">
-                                <span>Subtotal</span><span>₦{fmt(subtotal)}</span>
+                                <span>Subtotal</span><span>{formatPrice(subtotal)}</span>
                             </div>
                             <div className="flex justify-between text-sm text-stone-500">
-                                <span>Shipping</span><span>₦{fmt(shippingFee)}</span>
+                                <span>Shipping</span><span>{formatPrice(shippingFee)}</span>
                             </div>
                             <div className="flex justify-between text-base font-bold text-stone-900 pt-2 border-t border-stone-200 mt-1">
-                                <span>Total</span><span>₦{fmt(total)}</span>
+                                <span>Total</span><span>{formatPrice(total)}</span>
                             </div>
                         </div>
                     </div>
@@ -554,13 +679,17 @@ function StepSuccess({ email, items, contact, shipping, subtotal, shippingFee, t
                                 {shipping?.phone && <p className="text-stone-500">{shipping.phone}</p>}
                             </div>
                         </div>
-                        {shipping?.shippingMethod && (
+                        {shipping?.country && (
                             <div className="flex items-start gap-3 mt-4 text-sm text-stone-600">
                                 <ShieldCheck className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
                                 <div>
                                     <p className="text-xs text-stone-400 uppercase tracking-widest mb-1">Shipping method</p>
                                     <p className="font-medium text-stone-800">
-                                        {shipping.shippingMethod === 'express' ? 'Express Delivery (2–3 business days)' : 'Standard Delivery'}
+                                        {shipping.country === 'NG'
+                                            ? (getNigeriaFee(shipping.state) === 5000
+                                                ? 'Domestic Delivery – FCT Abuja'
+                                                : 'Domestic Delivery – Outside Abuja')
+                                            : 'DHL Express International'}
                                     </p>
                                 </div>
                             </div>
@@ -589,27 +718,77 @@ function StepSuccess({ email, items, contact, shipping, subtotal, shippingFee, t
 }
 
 function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
+    const { formatPrice } = useCurrency();
     const [selected, setSelected] = useState('bank_transfer')
     const [placing, setPlacing] = useState(false)
 
-    const shippingPrice = shipping.shippingPrice ?? 0
+    const shippingPrice = shipping.shippingFee ?? 0
     const total = subtotal + shippingPrice
 
     const handlePlace = async () => {
         setPlacing(true);
         try {
+            if (selected === 'bank_transfer') {
+                // Generate a local order ref for bank transfers
+                const localOrderRef = `BT-${Date.now()}`;
+                
+                try {
+                    await apiPost('/api/checkout/confirm', {
+                        rrr: localOrderRef,
+                        email: contact.email,
+                        full_name: `${shipping.firstName} ${shipping.lastName}`,
+                        shipping: {
+                            address:  shipping.address,
+                            apartment: shipping.apartment,
+                            city:     shipping.city,
+                            state:    shipping.state,
+                            postcode: shipping.postcode,
+                            country:  shipping.country,
+                            phone:    shipping.phone,
+                            method:   shipping.country === 'NG'
+                                ? (getNigeriaFee(shipping.state) === 5000
+                                    ? 'Domestic Delivery (FCT – Abuja)'
+                                    : 'Domestic Delivery (Outside Abuja)')
+                                : 'DHL Express International',
+                        },
+                        items: items.map(item => ({
+                            variantId: item.variantId,
+                            productName: item.productName,
+                            variantLabel: item.variantLabel,
+                            quantity: item.quantity,
+                            price: item.price,
+                            imageUrl: item.imageUrl,
+                        })),
+                        subtotal,
+                        shippingFee: shippingPrice,
+                        total,
+                    });
+                } catch (err) {
+                    console.error("Failed to confirm bank transfer order", err);
+                    alert("Order could not be confirmed at this time. Please try again or contact support.");
+                    setPlacing(false);
+                    return;
+                }
+
+                if (onPlace) onPlace();
+                setPlacing(false);
+                return;
+            }
+
             // Step 1: Initialize checkout with Remita to generate RRR
             const initResponse = await apiPost('/api/checkout/init', {
                 items: items.map(item => ({
                     variantId: item.variantId,
-                    quantity: item.quantity,
+                    quantity:  item.quantity,
                 })),
-                shippingMethod: shipping.shippingMethod,
-                email: contact.email,
-                payerName: `${shipping.firstName} ${shipping.lastName}`,
-                payerEmail: contact.email,
-                payerPhone: shipping.phone,
-                description: `Jorji Mara Apparel Order`,
+                countryCode:  shipping.country,
+                stateRegion:  shipping.state  || '',
+                postcode:     shipping.postcode,
+                email:        contact.email,
+                payerName:    `${shipping.firstName} ${shipping.lastName}`,
+                payerEmail:   contact.email,
+                payerPhone:   shipping.phone,
+                description:  `Jorji Mara Apparel Order`,
                 paymentMethod: 'remita',
             });
 
@@ -617,20 +796,28 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                 throw new Error('Failed to generate payment reference');
             }
 
-            // Step 2: Send confirmation email
+            // Step 2: Persist the order and send confirmation emails
             try {
                 await apiPost('/api/checkout/confirm', {
+                    rrr: initResponse.rrr,
                     email: contact.email,
                     full_name: `${shipping.firstName} ${shipping.lastName}`,
                     shipping: {
-                        address: shipping.address,
+                        address:  shipping.address,
                         apartment: shipping.apartment,
-                        city: shipping.city,
-                        state: shipping.state,
-                        phone: shipping.phone,
-                        method: shipping.shippingMethod === 'express' ? 'Express Delivery Within Abuja' : 'Delivery Outside Abuja',
+                        city:     shipping.city,
+                        state:    shipping.state,
+                        postcode: shipping.postcode,
+                        country:  shipping.country,
+                        phone:    shipping.phone,
+                        method:   shipping.country === 'NG'
+                            ? (getNigeriaFee(shipping.state) === 5000
+                                ? 'Domestic Delivery (FCT – Abuja)'
+                                : 'Domestic Delivery (Outside Abuja)')
+                            : 'DHL Express International',
                     },
                     items: items.map(item => ({
+                        variantId: item.variantId,
                         productName: item.productName,
                         variantLabel: item.variantLabel,
                         quantity: item.quantity,
@@ -642,7 +829,7 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                     total,
                 });
             } catch (err) {
-                console.error("Failed to send email", err);
+                console.error("Failed to confirm order", err);
             }
 
             // Step 3: Trigger Remita payment widget with the RRR
@@ -656,7 +843,8 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                     city: shipping.city,
                     state: shipping.state,
                 },
-                shippingMethod: shipping.shippingMethod,
+                country: shipping.country,
+                stateRegion: shipping.state,
                 items: items.map(item => ({
                     variantId: item.variantId,
                     quantity: item.quantity,
@@ -691,9 +879,9 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                     <button onClick={() => onBack(1)} className="text-xs text-stone-500 underline hover:text-stone-900 shrink-0">Change</button>
                 </div>
                 <div className="flex items-center justify-between px-4 py-3 gap-4">
-                    <span className="text-stone-400 text-xs uppercase tracking-widest shrink-0">Method</span>
+                    <span className="text-stone-400 text-xs uppercase tracking-widest shrink-0">Ship to</span>
                     <span className="text-stone-700 flex-1">
-                        {shipping.shippingMethod === 'express' ? 'Express Delivery' : 'Standard Delivery'} · ₦{fmt(shippingPrice)}
+                        {shipping.country === 'NG' ? 'Domestic Delivery' : 'DHL Express'} · {formatPrice(shippingPrice)}
                     </span>
                 </div>
             </div>
@@ -762,15 +950,15 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
             <div className="bg-stone-50 border border-stone-100 px-4 py-4 flex flex-col gap-2">
                 <div className="flex justify-between text-sm text-stone-600">
                     <span>Subtotal</span>
-                    <span>₦{fmt(subtotal)}</span>
+                    <span>{formatPrice(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-stone-600">
                     <span>Shipping</span>
-                    <span>₦{fmt(shippingPrice)}</span>
+                    <span>{formatPrice(shippingPrice)}</span>
                 </div>
                 <div className="flex justify-between text-base font-semibold text-stone-900 pt-2 border-t border-stone-200">
                     <span>Total</span>
-                    <span>₦{fmt(total)}</span>
+                    <span>{formatPrice(total)}</span>
                 </div>
             </div>
 
@@ -797,7 +985,7 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                     ) : (
                         <>
                             <Check className="w-4 h-4" />
-                            I have paid ₦{fmt(total)}
+                            I have paid {formatPrice(total)}
                         </>
                     )}
                 </button>
@@ -844,8 +1032,8 @@ export default function Checkout() {
     // Shipping form state
     const [shipping, setShipping] = useState({
         firstName: '', lastName: '', address: '', apartment: '',
-        city: '', state: '', phone: '',
-        shippingMethod: 'standard', shippingPrice: 2500,
+        city: '', country: '', state: '', postcode: '', phone: '',
+        shippingFee: null,
     })
 
     const updateContact = (key, val) => setContact(c => ({ ...c, [key]: val }))
@@ -856,7 +1044,7 @@ export default function Checkout() {
     const [orderSnapshot, setOrderSnapshot] = useState(null)
 
     const handlePlaced = () => {
-        const fee = shipping.shippingPrice ?? 0
+        const fee = shipping.shippingFee ?? 0
         setOrderSnapshot({
             items: [...checkoutItems],
             subtotal: checkoutSubtotal,
@@ -913,6 +1101,7 @@ export default function Checkout() {
                         <OrderSummary
                             items={checkoutItems}
                             subtotal={checkoutSubtotal}
+                            shippingFee={shipping.shippingFee}
                             collapsed={!summaryOpen}
                             onToggle={() => setSummaryOpen(v => !v)}
                         />
@@ -943,6 +1132,7 @@ export default function Checkout() {
                                     onChange={updateShipping}
                                     onNext={() => setStep(2)}
                                     onBack={() => setStep(0)}
+                                    items={checkoutItems}
                                 />
                             )}
                             {step === 2 && (
@@ -983,7 +1173,7 @@ export default function Checkout() {
                             <h3 className="text-xs font-semibold uppercase tracking-widest text-stone-500 mb-6">
                                 Order summary ({checkoutItems.length} {checkoutItems.length === 1 ? 'item' : 'items'})
                             </h3>
-                            <SummaryItems items={checkoutItems} subtotal={checkoutSubtotal} />
+                            <SummaryItems items={checkoutItems} subtotal={checkoutSubtotal} shippingFee={shipping.shippingFee} />
                         </div>
                     </aside>
                 )}

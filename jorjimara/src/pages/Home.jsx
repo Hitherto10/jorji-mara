@@ -6,6 +6,7 @@ import HeroSection from '../components/HeroSection.jsx'
 import Footer from '../components/Footer.jsx'
 import { SkeletonCard } from "../components/ProductSkeleton.jsx";
 import { useQuickView } from '../context/QuickViewContext.jsx'
+import { useCurrency } from '../context/CurrencyContext.jsx'
 import ScrollHorizontal from "../components/ScrollPrac.jsx";
 import { apiGet } from '../lib/api.js'
 
@@ -13,6 +14,7 @@ import { apiGet } from '../lib/api.js'
 function ProductCard({ product }) {
     const navigate = useNavigate();
     const { openQuickView } = useQuickView();
+    const { formatPrice } = useCurrency();
     const [currentIdx, setCurrentIdx] = useState(0);
     const touchStartX = useRef(null);
     const total = product.photos.length;
@@ -110,7 +112,7 @@ function ProductCard({ product }) {
             {/* Info */}
             <div className="pt-3 pb-4 flex flex-col gap-1">
                 <p className="text-sm font-normal tracking-wide text-stone-800">{product.name}</p>
-                <p className="text-sm text-stone-500 font-light">{product.currency === 'NGN' ? '₦' : product.currency}{product.price}</p>
+                <p className="text-sm text-stone-500 font-light">{formatPrice(product.price)}</p>
             </div>
 
             {/* Quick add */}
@@ -190,8 +192,8 @@ export default function Home() {
 
             <div className="max-w-4xl pt-12 px-4 md:px-6 mx-auto text-center">
                 <h2 className="text-xl md:text-3xl font-light leading-tight text-gray-900">
-                    Discover our world of collections and style, connect with us, and explore your luxury
-                    <span className="italic font-serif"> fashion happy place</span>.
+                    Discover our world of collections and style, connect with us, and explore your
+                    <span className="italic font-serif"> happy place</span>.
                 </h2>
             </div>
 

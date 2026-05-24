@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { CartProvider } from './context/CartContext.jsx'
+import { CurrencyProvider } from './context/CurrencyContext.jsx'
 import { ToastProvider } from './components/Toast.jsx'
 import { QuickViewProvider } from './context/QuickViewContext.jsx'
 import QuickViewModal from './components/QuickViewModal.jsx'
@@ -20,29 +21,31 @@ const RefundPolicy = lazy(() => import('./pages/RefundPolicy.jsx'))
 
 function App() {
     return (
-        <CartProvider>
-            <ToastProvider>
-                <QuickViewProvider>
-                    <QuickViewModal />
-                    <Suspense fallback={<div className="min-h-screen bg-white" />}>
-                        <Routes>
-                            <Route path="/" element={<Home />} />
-                            <Route path="/products" element={<ShopPage />} />
-                            <Route path="/products/:slug" element={<ProductPage />} />
-                            <Route path="/checkout" element={<Checkout />} />
-                            <Route path="/contact" element={<Contact />} />
-                            <Route path="/terms" element={<Terms />} />
-                            <Route path="/refund-policy" element={<RefundPolicy />} />
-                            <Route path="/size-chart" element={<SizeChart />} />
-                            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                            <Route path="/shipping-and-returns" element={<ShippingAndReturns />} />
-                            <Route path="/search" element={<SearchResultsPage />} />
-                            <Route path="/ScrollHorizontal" element={<ScrollHorizontal />} />
-                        </Routes>
-                    </Suspense>
-                </QuickViewProvider>
-            </ToastProvider>
-        </CartProvider>
+        <CurrencyProvider>
+            <CartProvider>
+                <ToastProvider>
+                    <QuickViewProvider>
+                        <QuickViewModal />
+                        <Suspense fallback={<div className="min-h-screen bg-white" />}>
+                            <Routes>
+                                <Route path="/" element={<Home />} />
+                                <Route path="/products" element={<ShopPage />} />
+                                <Route path="/products/:slug" element={<ProductPage />} />
+                                <Route path="/checkout" element={<Checkout />} />
+                                <Route path="/contact" element={<Contact />} />
+                                <Route path="/terms" element={<Terms />} />
+                                <Route path="/refund-policy" element={<RefundPolicy />} />
+                                <Route path="/size-chart" element={<SizeChart />} />
+                                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                                <Route path="/shipping-and-returns" element={<ShippingAndReturns />} />
+                                <Route path="/search" element={<SearchResultsPage />} />
+                                <Route path="/ScrollHorizontal" element={<ScrollHorizontal />} />
+                            </Routes>
+                        </Suspense>
+                    </QuickViewProvider>
+                </ToastProvider>
+            </CartProvider>
+        </CurrencyProvider>
     )
 }
 

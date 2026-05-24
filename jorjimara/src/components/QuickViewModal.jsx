@@ -6,9 +6,9 @@ import { useQuickView } from '../context/QuickViewContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 import { useToast } from './Toast.jsx'
 import { apiGet } from '../lib/api.js'
+import { useCurrency } from '../context/CurrencyContext.jsx'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n))
 
 function extractOptions(variants) {
     const sizeOrder = ['xs', 's', 'm', 'l', 'xl', 'xxl', 'one size', 'one-size', 'onesize']
@@ -202,6 +202,7 @@ function QuickViewSkeleton() {
 export default function QuickViewModal() {
     const { slug, closeQuickView } = useQuickView()
     const { addItem, isInCart } = useCart()
+    const { formatPrice } = useCurrency()
     const toast = useToast()
     const navigate = useNavigate()
 
@@ -404,11 +405,11 @@ export default function QuickViewModal() {
                                             {/* Price */}
                                             <div className="flex items-baseline gap-2.5 mt-1.5">
                                                 <span className={`text-base font-light ${hasSale ? 'text-[#4d0011]' : 'text-stone-900'}`}>
-                                                    ₦{fmt(displayPrice)}
+                                                    {formatPrice(displayPrice)}
                                                 </span>
                                                 {hasSale && (
                                                     <span className="text-sm text-stone-400 line-through">
-                                                        ₦{fmt(comparePrice)}
+                                                        {formatPrice(comparePrice)}
                                                     </span>
                                                 )}
                                                 {hasSale && (

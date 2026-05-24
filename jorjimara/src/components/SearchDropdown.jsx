@@ -8,9 +8,9 @@ import {
     clearRecentSearches,
 } from '../hooks/useSearch.js'
 
-// ─── Format helpers ───────────────────────────────────────────────────────────
-const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n))
+import { useCurrency } from '../context/CurrencyContext.jsx'
 
+// ─── Format helpers ───────────────────────────────────────────────────────────
 // ─── Highlight matching text ──────────────────────────────────────────────────
 function Highlight({ text, query }) {
     if (!query?.trim()) return <span>{text}</span>
@@ -72,6 +72,7 @@ export default function SearchDropdown({
                                            onClearRecent,
                                            onRemoveRecent,
                                        }) {
+    const { formatPrice } = useCurrency()
     const navigate   = useNavigate()
     const listRef    = useRef(null)
     const minChars   = 3
@@ -228,9 +229,9 @@ export default function SearchDropdown({
                                                         <Highlight text={product.name} query={query} />
                                                     </p>
                                                     <div className="flex items-baseline gap-2 mt-0.5">
-                                                        <span className="text-xs text-stone-500">₦{fmt(product.price)}</span>
+                                                        <span className="text-xs text-stone-500">{formatPrice(product.price)}</span>
                                                         {product.comparePrice && (
-                                                            <span className="text-[10px] text-stone-400 line-through">₦{fmt(product.comparePrice)}</span>
+                                                            <span className="text-[10px] text-stone-400 line-through">{formatPrice(product.comparePrice)}</span>
                                                         )}
                                                     </div>
                                                 </div>

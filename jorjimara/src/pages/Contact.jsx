@@ -56,11 +56,14 @@ const socials = [
 ]
 
 // ─── Animated field ───────────────────────────────────────────────────────────
-function FloatingField({ id, label, type = 'text', name, required, children }) {
+function FloatingField({ id, label, type = 'text', name, required, children, onChange: onChangeProp, maxLength }) {
     const [focused, setFocused] = useState(false)
     const [filled, setFilled] = useState(false)
 
-    const handleChange = (e) => setFilled(e.target.value.length > 0)
+    const handleChange = (e) => {
+        setFilled(e.target.value.length > 0)
+        onChangeProp?.(e)
+    }
     const raised = focused || filled
 
     return (
@@ -73,23 +76,24 @@ function FloatingField({ id, label, type = 'text', name, required, children }) {
                         name={name}
                         required={required}
                         rows={5}
+                        maxLength={maxLength}
                         onChange={handleChange}
                         onFocus={() => setFocused(true)}
                         onBlur={() => setFocused(false)}
-                        className="peer w-full pt-6 pb-3 px-4 bg-transparent border border-stone-200 text-stone-900 text-sm resize-none outline-none transition-colors duration-200 focus:border-stone-900 placeholder-transparent"
+                        className="peer w-full pt-6 pb-3 px-4 bg-white/60 border border-stone-200 text-stone-900 text-sm resize-none outline-none transition-all duration-200 focus:border-[#4d0011] focus:bg-white placeholder-transparent rounded-sm"
                         placeholder={label}
                     />
                     <label
                         htmlFor={id}
                         className={`absolute left-4 pointer-events-none transition-all duration-200 font-medium
                             ${raised
-                                ? 'top-2 text-[10px] tracking-widest uppercase text-stone-400'
+                                ? 'top-2 text-[10px] tracking-widest uppercase text-[#4d0011]'
                                 : 'top-4 text-sm text-stone-400'
                             }`}
                     >
                         {label}
                     </label>
-                    <span className={`absolute bottom-0 left-0 h-px bg-stone-900 transition-all duration-300 ${focused ? 'w-full' : 'w-0'}`} />
+                    <span className={`absolute bottom-0 left-0 h-px bg-[#4d0011] transition-all duration-300 ${focused ? 'w-full' : 'w-0'}`} />
                 </div>
             ) : (
                 <div className="relative">
@@ -101,20 +105,20 @@ function FloatingField({ id, label, type = 'text', name, required, children }) {
                         onChange={handleChange}
                         onFocus={() => setFocused(true)}
                         onBlur={() => setFocused(false)}
-                        className="peer w-full pt-6 pb-3 px-4 bg-transparent border border-stone-200 text-stone-900 text-sm outline-none transition-colors duration-200 focus:border-stone-900 placeholder-transparent"
+                        className="peer w-full pt-6 pb-3 px-4 bg-white/60 border border-stone-200 text-stone-900 text-sm outline-none transition-all duration-200 focus:border-[#4d0011] focus:bg-white placeholder-transparent rounded-sm"
                         placeholder={label}
                     />
                     <label
                         htmlFor={id}
                         className={`absolute left-4 pointer-events-none transition-all duration-200 font-medium
                             ${raised
-                                ? 'top-2 text-[10px] tracking-widest uppercase text-stone-400'
+                                ? 'top-2 text-[10px] tracking-widest uppercase text-[#4d0011]'
                                 : 'top-[50%] -translate-y-1/2 text-sm text-stone-400'
                             }`}
                     >
                         {label}
                     </label>
-                    <span className={`absolute bottom-0 left-0 h-px bg-stone-900 transition-all duration-300 ${focused ? 'w-full' : 'w-0'}`} />
+                    <span className={`absolute bottom-0 left-0 h-px bg-[#4d0011] transition-all duration-300 ${focused ? 'w-full' : 'w-0'}`} />
                 </div>
             )}
         </div>
@@ -124,12 +128,14 @@ function FloatingField({ id, label, type = 'text', name, required, children }) {
 // ─── Main Contact Page ────────────────────────────────────────────────────────
 export default function Contact() {
     const [status, setStatus] = useState('idle') // idle | sending | success | error
+    const [messageLength, setMessageLength] = useState(0)
     const formRef = useRef(null)
 
     const onSubmit = async (e) => {
         e.preventDefault();
         setStatus("sending");
         const formEl = e.target;
+        let ok = false;
         try {
             const result = await apiPost("/api/contact", {
                 name: formEl.name.value,
@@ -137,12 +143,16 @@ export default function Contact() {
                 subject: formEl.subject?.value ?? "",
                 message: formEl.message.value,
             });
-            setStatus(result.success ? "success" : "error");
-            if (result.success) formEl.reset();
+            ok = !!result?.success;
+            setStatus(ok ? "success" : "error");
+            if (ok) {
+                formEl.reset();
+                setMessageLength(0);
+            }
         } catch {
             setStatus("error");
         }
-        setTimeout(() => setStatus("idle"), result?.success ? 6000 : 4000);
+        setTimeout(() => setStatus("idle"), ok ? 6000 : 4000);
     };
 
     const sending = status === 'sending'
@@ -262,115 +272,146 @@ export default function Contact() {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.55, delay: 0.25 }}
+                        className="relative"
                     >
-                        <AnimatePresence mode="wait">
-                            {success ? (
-                                /* ── Success state ── */
-                                <motion.div
-                                    key="success"
-                                    className="flex flex-col items-start gap-5 py-12"
-                                    initial={{ opacity: 0, scale: 0.96 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                >
-                                    <div className="w-12 h-12 rounded-full bg-[#4d0011]/10 flex items-center justify-center shrink-0">
-                                        <svg className="w-6 h-6 text-[#4d0011]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <h3 className="font-serif text-2xl font-light text-stone-900 mb-1">Message sent ♡</h3>
-                                        <p className="text-sm text-stone-500 leading-relaxed">
-                                            Thank you so much for reaching out! Jorji will get back to you within 24 hours.
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => setStatus('idle')}
-                                        className="mt-4 text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 border-b border-stone-300 hover:border-stone-700 pb-0.5 transition-colors"
-                                    >
-                                        Send another message
-                                    </button>
-                                </motion.div>
-                            ) : (
-                                /* ── Form ── */
-                                <motion.form
-                                    key="form"
-                                    onSubmit={onSubmit}
-                                    className="flex flex-col gap-5"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    exit={{ opacity: 0 }}
-                                    transition={{ duration: 0.2 }}
-                                >
-                                    <div className="mb-2">
-                                        <p className="text-[10px] tracking-[0.25em] uppercase text-stone-400 font-semibold mb-1">Send a message</p>
-                                        <h2 className="font-serif text-2xl md:text-3xl font-light text-stone-900">
-                                            Let's <em className="italic">talk</em>
-                                        </h2>
-                                    </div>
+                        {/* Soft card wrapper with accent stripe */}
+                        <div className="relative bg-white border border-stone-100 rounded-md shadow-[0_2px_24px_-12px_rgba(77,0,17,0.18)] overflow-hidden">
 
-                                    {/* Name + Email side by side on md+ */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                        <FloatingField id="name" name="name" label="Your name" required />
-                                        <FloatingField id="email" name="email" label="Email address" type="email" required />
-                                    </div>
-
-                                    {/* Subject */}
-                                    <FloatingField id="subject" name="subject" label="Subject (e.g. Custom order, Sizing question…)" />
-
-                                    {/* Message */}
-                                    <FloatingField id="message" name="message" label="Your message" required>
-                                        textarea
-                                    </FloatingField>
-
-                                    {/* Error banner */}
-                                    <AnimatePresence>
-                                        {error && (
-                                            <motion.p
-                                                className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-sm"
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: 'auto' }}
-                                                exit={{ opacity: 0, height: 0 }}
+                            <div className="p-6 md:p-10">
+                                <AnimatePresence mode="wait">
+                                    {success ? (
+                                        /* ── Success state ── */
+                                        <motion.div
+                                            key="success"
+                                            className="flex flex-col items-start gap-5 py-8"
+                                            initial={{ opacity: 0, scale: 0.96 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.3 }}
+                                        >
+                                            <motion.div
+                                                className="w-14 h-14 rounded-full bg-[#4d0011]/10 flex items-center justify-center shrink-0 ring-4 ring-[#4d0011]/5"
+                                                initial={{ scale: 0 }}
+                                                animate={{ scale: 1 }}
+                                                transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.05 }}
                                             >
-                                                Please try again or email us directly at jorjimara@gmail.com
-                                            </motion.p>
-                                        )}
-                                    </AnimatePresence>
-
-                                    {/* Submit */}
-                                    <button
-                                        type="submit"
-                                        disabled={sending}
-                                        className={`mt-2 w-full h-13 flex items-center justify-center gap-3 text-xs tracking-[0.2em] uppercase font-semibold transition-all duration-200
-                                            ${sending
-                                                ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
-                                                : 'bg-[#4d0011] hover:bg-[#3a000c] text-white'
-                                            }`}
-                                    >
-                                        {sending ? (
-                                            <>
-                                                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                                Sending…
-                                            </>
-                                        ) : (
-                                            <>
-                                                Send message
-                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                                <svg className="w-7 h-7 text-[#4d0011]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                                 </svg>
-                                            </>
-                                        )}
-                                    </button>
+                                            </motion.div>
+                                            <div>
+                                                <h3 className="font-serif text-2xl font-light text-stone-900 mb-1">Message sent ♡</h3>
+                                                <p className="text-sm text-stone-500 leading-relaxed">
+                                                    Thank you so much for reaching out! Jorji will get back to you within 24 hours.
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => { setStatus('idle'); setMessageLength(0); }}
+                                                className="mt-4 text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 border-b border-stone-300 hover:border-stone-700 pb-0.5 transition-colors"
+                                            >
+                                                Send another message
+                                            </button>
+                                        </motion.div>
+                                    ) : (
+                                        /* ── Form ── */
+                                        <motion.form
+                                            key="form"
+                                            onSubmit={onSubmit}
+                                            className="flex flex-col gap-5"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0 }}
+                                            transition={{ duration: 0.2 }}
+                                        >
+                                            <div className="mb-2 flex items-start gap-3">
 
-                                    <p className="text-[10px] text-stone-400 text-center leading-relaxed">
-                                        By submitting this form you agree to our{' '}
-                                        <a href="#" className="underline hover:text-stone-700 transition-colors">privacy policy</a>.
-                                        Your information will never be shared.
-                                    </p>
-                                </motion.form>
-                            )}
-                        </AnimatePresence>
+                                                <div>
+                                                    <p className="text-[10px] tracking-[0.25em] uppercase text-stone-400 font-semibold mb-1">Send a message</p>
+                                                    <h2 className="font-serif text-2xl md:text-3xl font-light text-stone-900 leading-tight">
+                                                        Let's <em className="italic">talk</em>
+                                                    </h2>
+                                                </div>
+                                            </div>
+
+                                            {/* Name + Email side by side on md+ */}
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                                <FloatingField id="name" name="name" label="Your name" required />
+                                                <FloatingField id="email" name="email" label="Email address" type="email" required />
+                                            </div>
+
+                                            {/* Subject */}
+                                            <FloatingField id="subject" name="subject" label="Subject (e.g. Custom order, Sizing question…)" />
+
+                                            {/* Message */}
+                                            <div className="flex flex-col gap-1">
+                                                <FloatingField
+                                                    id="message"
+                                                    name="message"
+                                                    label="Your message"
+                                                    required
+                                                    maxLength={2000}
+                                                    onChange={(e) => setMessageLength(e.target.value.length)}
+                                                >
+                                                    textarea
+                                                </FloatingField>
+                                                <div className="flex justify-end">
+                                                    <span className={`text-[10px] tracking-wider tabular-nums transition-colors ${
+                                                        messageLength > 1800 ? 'text-[#4d0011]' : 'text-stone-300'
+                                                    }`}>
+                                                        {messageLength}/2000
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Error banner */}
+                                            <AnimatePresence>
+                                                {error && (
+                                                    <motion.p
+                                                        className="text-xs text-red-600 bg-red-50 border border-red-200 px-4 py-3 rounded-sm"
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                    >
+                                                        Something went wrong. Please try again or email us directly at jorjimara@gmail.com
+                                                    </motion.p>
+                                                )}
+                                            </AnimatePresence>
+
+                                            {/* Submit */}
+                                            <button
+                                                type="submit"
+                                                disabled={sending}
+                                                className={`group mt-2 w-full h-13 flex items-center justify-center gap-3 text-xs tracking-[0.2em] uppercase font-semibold rounded-sm transition-all duration-200
+                                                    ${sending
+                                                        ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+                                                        : 'bg-[#4d0011] hover:bg-[#3a000c] text-white shadow-sm hover:shadow-md'
+                                                    }`}
+                                            >
+                                                {sending ? (
+                                                    <>
+                                                        <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                                        Sending…
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        Send message
+                                                        <svg className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                                        </svg>
+                                                    </>
+                                                )}
+                                            </button>
+
+                                            <p className="text-[10px] text-stone-400 text-center leading-relaxed">
+                                                By submitting this form you agree to our{' '}
+                                                <a href="/privacy-policy" className="underline hover:text-stone-700 transition-colors">privacy policy</a>.
+                                                Your information will never be shared.
+                                            </p>
+                                        </motion.form>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </div>
                     </motion.div>
                 </div>
 

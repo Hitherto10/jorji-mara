@@ -7,21 +7,23 @@
 
 export function createSupabaseClient(env) {
     const url = env.SUPABASE_URL;
-    const key = env.SUPABASE_ANON_KEY;
+    const anonKey = env.SUPABASE_ANON_KEY;
+    const serviceKey = env.SUPABASE_SERVICE_ROLE || env.SUPABASE_ANON_KEY;
 
-    const headers = {
-        'Content-Type': 'application/json',
-        'apikey': key,
-        'Authorization': `Bearer ${key}`,
-        'Prefer': 'return=representation',
-    };
     return {
         // SELECT query builder
         from(table) {
-            return new QueryBuilder(url, table, headers);
+            return new QueryBuilder(url, table, anonKey, serviceKey);
         },
         // Raw RPC call
-        async rpc(fn, params = {}) {
+        async rpc(fn, params = {}, options = { useServiceRole: false }) {
+            const keyToUse = options.useServiceRole ? serviceKey : anonKey;
+            const headers = {
+                'Content-Type': 'application/json',
+                'apikey': keyToUse,
+                'Authorization': `Bearer ${keyToUse}`,
+                'Prefer': 'return=representation',
+            };
             const res = await fetch(`${url}/rest/v1/rpc/${fn}`, {
                 method: 'POST',
                 headers,
@@ -34,10 +36,15 @@ export function createSupabaseClient(env) {
 }
 
 class QueryBuilder {
-	constructor(baseUrl, table, headers) {
+	constructor(baseUrl, table, anonKey, serviceKey) {
 		this._baseUrl = baseUrl;
 		this._table = table;
-		this._headers = { ...headers };
+		this._anonKey = anonKey;
+		this._serviceKey = serviceKey;
+		this._headers = {
+			'Content-Type': 'application/json',
+			'Prefer': 'return=representation',
+		};
 		this._params = new URLSearchParams();
 
 		this._select = "*";
@@ -56,7 +63,9 @@ class QueryBuilder {
 		this._select = cols.replace(/\s+/g, ' ').trim();
 
 		if (opts.count === "exact") {
-			this._headers['Prefer'] = 'count=exact';
+			// Append count=exact to Prefer header
+			const currentPrefer = this._headers['Prefer'] || '';
+			this._headers['Prefer'] = currentPrefer ? `${currentPrefer},count=exact` : 'count=exact';
 			this._count = true;
 		}
 
@@ -194,9 +203,16 @@ class QueryBuilder {
 
 		const url = `${this._baseUrl}/rest/v1/${this._table}?select=${encodeURIComponent(this._select)}${qs ? "&" + qs : ""}`;
 
+		const keyToUse = this._method === "GET" ? this._anonKey : this._serviceKey;
+		const finalHeaders = {
+			...this._headers,
+			'apikey': keyToUse,
+			'Authorization': `Bearer ${keyToUse}`
+		};
+
 		const res = await fetch(url, {
 			method: this._method,
-			headers: this._headers,
+			headers: finalHeaders,
 			body: this._body
 		});
 

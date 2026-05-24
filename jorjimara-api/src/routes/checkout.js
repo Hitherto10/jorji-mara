@@ -1,17 +1,61 @@
 // src/routes/checkout.js
 import { Hono } from 'hono';
 import { createSupabaseClient } from '../lib/supabase.js';
+import { calculateShipping } from '../utils/shippingCalculator.js';
 
 const checkout = new Hono();
-
-// Shipping fees - these should match the frontend SHIPPING_OPTIONS
-const SHIPPING = {
-	express: 5000,           // Express Delivery Within Abuja (2–3 business days)
-	'other-states': 8000,    // Delivery Outside Abuja (5–10 business days)
-};
 const REMITA_BASE_URL  = 'https://demo.remita.net';
 const GEN_RRR_PATH     = '/remita/exapp/api/v1/send/api/echannelsvc/merchant/api/paymentinit';
 const STATUS_PATH      = '/remita/exapp/api/v1/send/api/echannelsvc/';
+
+// ─── POST /api/checkout/calculate-shipping ────────────────────────────────────
+// Called by the frontend to get a real-time shipping quote before proceeding
+// to payment.  Weight is fetched server-side; the client never sees it.
+//
+// Body: { items, countryCode, stateRegion, postcode }
+// Returns: { shippingFee, zone, weightKg, currency }
+checkout.post('/calculate-shipping', async (c) => {
+	let body;
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: 'Invalid JSON body' }, 400);
+	}
+
+	const { items, countryCode, stateRegion, postcode } = body;
+
+	if (!countryCode)
+		return c.json({ error: 'Country is required' }, 400);
+	if (!postcode)
+		return c.json({ error: 'Postcode is required' }, 400);
+	if (!Array.isArray(items) || items.length === 0)
+		return c.json({ error: 'Cart is empty' }, 400);
+
+	const variantIds = items.map(i => i.variantId).filter(Boolean);
+	if (variantIds.length !== items.length)
+		return c.json({ error: 'All items must have a variantId' }, 400);
+
+	// Fetch product weights only for international shipments
+	let variants = [];
+	if (countryCode !== 'NG') {
+		const db = createSupabaseClient(c.env);
+		const { data, error } = await db
+			.from('product_variants')
+			.select('id, product_id, products ( weight )')
+			.in('id', variantIds)
+			.eq('is_active', true);
+		if (error) return c.json({ error: 'Could not retrieve product data' }, 500);
+		variants = data ?? [];
+	}
+
+	try {
+		const result = calculateShipping({ items, countryCode, stateRegion, variants });
+		return c.json(result);
+	} catch (err) {
+		return c.json({ error: err.message }, 400);
+	}
+});
+
 
 //  POST /api/checkout/init
 checkout.post('/init', async (c) => {
@@ -24,7 +68,7 @@ checkout.post('/init', async (c) => {
 
 	const {
 		items,
-		shippingMethod,
+		countryCode, stateRegion, postcode,
 		email, payerName, payerEmail,
 		payerPhone, description, paymentMethod,
 	} = body;
@@ -34,8 +78,10 @@ checkout.post('/init', async (c) => {
 		return c.json({ error: 'Please provide a valid email' }, 400);
 	if (!Array.isArray(items) || items.length === 0)
 		return c.json({ error: 'Cart is empty' }, 400);
-	if (!shippingMethod || !SHIPPING[shippingMethod])
-		return c.json({ error: 'Invalid or missing shipping method' }, 400);
+	if (!countryCode)
+		return c.json({ error: 'Country is required' }, 400);
+	if (!postcode)
+		return c.json({ error: 'Postcode is required' }, 400);
 
 	const variantIds = items.map(i => i.variantId).filter(Boolean);
 	if (variantIds.length !== items.length)
@@ -46,7 +92,7 @@ checkout.post('/init', async (c) => {
 	// ── Fetch + validate variants ───────────────────────────────────────────
 	const { data: variants, error: varErr } = await db
 		.from('product_variants')
-		.select('id, price, stock, is_active, product_id, products ( name, price )')
+		.select('id, price, stock, is_active, product_id, products ( name, price, weight )')
 		.in('id', variantIds)
 		.eq('is_active', true);
 
@@ -70,7 +116,14 @@ checkout.post('/init', async (c) => {
 		return { variantId: item.variantId, quantity: item.quantity, price, lineTotal: price * item.quantity };
 	});
 
-	const shippingCost = SHIPPING[shippingMethod];
+	// Re-calculate shipping server-side — never trust the client-submitted fee
+	let shippingResult;
+	try {
+		shippingResult = calculateShipping({ items, countryCode, stateRegion, variants });
+	} catch (err) {
+		return c.json({ error: err.message }, 400);
+	}
+	const shippingCost = shippingResult.shippingFee;
 	const total = subtotal + shippingCost;
 
 	// Remita
@@ -132,7 +185,9 @@ checkout.post('/init', async (c) => {
 			email,
 			payer_name:      payerName,
 			payer_phone:     payerPhone,
-			shipping_method: shippingMethod,
+			country:         countryCode,
+			state:           stateRegion ?? null,
+			postcode:        postcode,
 			subtotal,
 			shipping_fee:    shippingCost,
 			total,
@@ -159,7 +214,8 @@ checkout.post('/init', async (c) => {
 				currency:     'NGN',
 				metadata: {
 					lineItems,
-					shippingMethod,
+					countryCode,
+					stateRegion,
 					shippingCost,
 					subtotal,
 				},
@@ -272,11 +328,146 @@ checkout.post('/confirm', async (c) => {
 	} catch {
 		return c.json({ error: 'Invalid JSON body' }, 400);
 	}
-	const { email, full_name, shipping, items = [], subtotal = 0, shippingFee = 0, total = 0 } = body;
+	const {
+		rrr,
+		email,
+		full_name,
+		shipping,
+		items = [],
+		subtotal: clientSubtotal = 0,
+		shippingFee: clientShippingFee = 0,
+		total: clientTotal = 0,
+	} = body;
 
 	if (!email) return c.json({ error: 'Email is required' }, 400);
 
 	const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n));
+
+	// ── Persist the order ───────────────────────────────────────────────────
+	// We verify variants + recompute money server-side, then insert into
+	// orders + order_items. Bank transfer flow → status & payment_status
+	// remain 'pending' until the admin confirms the wire transfer.
+	const db = createSupabaseClient(c.env);
+
+	let subtotal = Number(clientSubtotal) || 0;
+	let shippingFee = Number(clientShippingFee) || 0;
+	let total = Number(clientTotal) || 0;
+	let lineItems = [];           // rows for order_items insert
+	let orderNumber = null;
+	let orderId = null;
+	const paymentRef = rrr || `JM_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+	const variantIds = items.map(i => i.variantId).filter(Boolean);
+
+	if (variantIds.length === items.length && items.length > 0) {
+		// Re-fetch variants to validate cart + recompute totals server-side
+		const { data: variants, error: varErr } = await db
+			.from('product_variants')
+			.select('id, price, stock, is_active, sku, size, color, product_id, products ( name, price, weight )')
+			.in('id', variantIds)
+			.eq('is_active', true);
+
+		if (varErr || !variants) {
+			console.error('[checkout/confirm] variant fetch error:', varErr);
+		} else {
+			let serverSubtotal = 0;
+			const rows = [];
+			let allFound = true;
+
+			for (const item of items) {
+				const variant = variants.find(v => v.id === item.variantId);
+				if (!variant) { allFound = false; break; }
+
+				const unitPrice = Number(variant.price ?? variant.products?.price ?? item.price ?? 0);
+				const totalPrice = unitPrice * item.quantity;
+				serverSubtotal += totalPrice;
+
+				rows.push({
+					variant_id:    variant.id,
+					product_name:  variant.products?.name ?? item.productName ?? 'Item',
+					variant_size:  variant.size ?? null,
+					variant_color: variant.color ?? null,
+					sku:           variant.sku ?? null,
+					quantity:      item.quantity,
+					unit_price:    unitPrice,
+					total_price:   totalPrice,
+					image_url:     item.imageUrl ?? null,
+				});
+			}
+
+			if (allFound) {
+				subtotal = serverSubtotal;
+				// Recompute shipping server-side (mirrors /init)
+				try {
+					const shippingResult = calculateShipping({
+						items,
+						countryCode: shipping?.country,
+						stateRegion: shipping?.state ?? '',
+						variants,
+					});
+					shippingFee = shippingResult.shippingFee;
+				} catch {
+					// fall back to client-supplied fee if the calculator rejects
+				}
+				total = subtotal + shippingFee;
+				lineItems = rows;
+			}
+		}
+	}
+
+	// Idempotency — if an order with this payment_ref already exists, reuse it
+	const { data: existingOrder } = await db
+		.from('orders')
+		.select('id, order_number')
+		.eq('payment_ref', paymentRef)
+		.maybeSingle();
+
+	if (existingOrder) {
+		orderId = existingOrder.id;
+		orderNumber = existingOrder.order_number;
+	} else {
+		const { data: newOrder, error: orderErr } = await db
+			.from('orders')
+			.insert({
+				payment_ref:       paymentRef,
+				payment_method:    'bank_transfer',
+				payment_provider:  'manual',
+				payment_status:    'pending',
+				status:            'pending',
+				subtotal,
+				shipping_fee:      shippingFee,
+				discount_amount:   0,
+				total,
+				currency:          'NGN',
+				shipping_name:     full_name ?? null,
+				shipping_phone:    shipping?.phone ?? null,
+				shipping_address1: shipping?.address ?? null,
+				shipping_address2: shipping?.apartment ?? null,
+				shipping_city:     shipping?.city ?? null,
+				shipping_state:    shipping?.state ?? null,
+				shipping_country:  shipping?.country ?? null,
+				notes:             `Bank transfer pending verification. Customer email: ${email}`,
+			})
+			.select('id, order_number')
+			.single();
+
+		if (orderErr || !newOrder) {
+			console.error('[checkout/confirm] order insert error:', orderErr);
+			return c.json({ error: 'Could not save order. Please contact support.' }, 500);
+		}
+
+		orderId = newOrder.id;
+		orderNumber = newOrder.order_number;
+
+		if (lineItems.length > 0) {
+			const itemRows = lineItems.map(r => ({ ...r, order_id: orderId }));
+			const { error: itemsErr } = await db.from('order_items').insert(itemRows);
+			if (itemsErr) {
+				console.error('[checkout/confirm] order_items insert error:', itemsErr);
+				// Order is saved; line items failed — flag for manual review
+			}
+		}
+	}
 
 	// ── Build order item rows ────────────────────────────────────────────────
 	const itemRowsHtml = items.map(item => `
@@ -467,7 +658,97 @@ checkout.post('/confirm', async (c) => {
 </body>
 </html>`;
 
-	const resendRes = await fetch('https://api.resend.com/emails', {
+	// ── Admin notification email ────────────────────────────────────────────
+	const adminEmail = c.env.ADMIN_ORDER_EMAIL || 'jorjimara@gmail.com';
+	const adminSubject = `New order ${orderNumber ? `#${orderNumber} ` : ''}— ₦${fmt(total)} (bank transfer pending)`;
+
+	const adminHtml = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>${adminSubject}</title></head>
+<body style="margin:0;padding:0;background-color:#F4F1ED;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F4F1ED;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:2px;overflow:hidden;">
+        <tr>
+          <td style="background:#4d0011;padding:32px 36px;">
+            <p style="margin:0 0 6px;font-size:11px;color:rgba(255,255,255,0.55);letter-spacing:3px;text-transform:uppercase;">New Order — Action Required</p>
+            <h1 style="margin:0;font-size:28px;line-height:1.2;color:#ffffff;font-family:Georgia,serif;font-weight:400;">
+              ${orderNumber ? `Order #${orderNumber}` : 'New Order'}
+            </h1>
+            <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Bank transfer pending verification</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:28px 36px 8px;">
+            <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#bbb;">Customer</p>
+            <p style="margin:0;font-size:14px;line-height:1.7;color:#333;">
+              <strong>${full_name || '—'}</strong><br/>
+              ${email}${shipping?.phone ? `<br/>${shipping.phone}` : ''}
+            </p>
+          </td>
+        </tr>
+
+        ${shippingLines ? `
+        <tr>
+          <td style="padding:18px 36px 8px;">
+            <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#bbb;">Shipping to</p>
+            <p style="margin:0;font-size:14px;line-height:1.7;color:#333;">
+              ${shippingLines}${shipping?.postcode ? `, ${shipping.postcode}` : ''}${shipping?.country ? ` (${shipping.country})` : ''}
+            </p>
+            ${shipping?.method ? `<p style="margin:6px 0 0;font-size:13px;color:#666;">Method: ${shipping.method}</p>` : ''}
+          </td>
+        </tr>` : ''}
+
+        <tr>
+          <td style="padding:20px 36px 8px;">
+            <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a1a;">Items</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              ${itemRowsHtml}
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 36px 28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;border-top:1px solid #F0EDE8;">
+              <tr>
+                <td style="padding:12px 0 4px;font-size:14px;color:#777;">Subtotal</td>
+                <td style="padding:12px 0 4px;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(subtotal)}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;font-size:14px;color:#777;">Shipping</td>
+                <td style="padding:4px 0;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(shippingFee)}</td>
+              </tr>
+              <tr><td colspan="2" style="padding-top:14px;"><div style="height:2px;background:#1a1a1a;"></div></td></tr>
+              <tr>
+                <td style="padding:12px 0 0;font-size:18px;font-weight:700;color:#1a1a1a;">Total</td>
+                <td style="padding:12px 0 0;font-size:18px;font-weight:700;color:#1a1a1a;text-align:right;">&#8358;${fmt(total)} NGN</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 36px 32px;">
+            <div style="background:#FFF8E1;border:1px solid #FFE08A;border-radius:4px;padding:14px 16px;font-size:13px;color:#7a5a00;line-height:1.6;">
+              <strong>Payment ref:</strong> ${paymentRef}<br/>
+              Please verify the bank transfer in Stanbic IBTC (0081688464) and then mark this order as paid.
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+	const sendEmail = (to, subject, html) => fetch('https://api.resend.com/emails', {
 		method:  'POST',
 		headers: {
 			'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
@@ -475,19 +756,38 @@ checkout.post('/confirm', async (c) => {
 		},
 		body: JSON.stringify({
 			from:    c.env.RESEND_FROM_EMAIL || 'orders@jorjimara.com',
-			to:      [email],
-			subject: `We're on it — Jorji Mara Apparel`,
-			html:    emailHtml,
+			to:      [to],
+			subject,
+			html,
 		}),
 	});
 
-	if (!resendRes.ok) {
-		const resendErr = await resendRes.json().catch(() => ({}));
-		console.error('Resend error:', resendErr);
-		return c.json({ error: resendErr.message ?? 'Failed to send confirmation email' }, 400);
+	const [customerRes, adminRes] = await Promise.allSettled([
+		sendEmail(email, `We're on it — Jorji Mara Apparel`, emailHtml),
+		sendEmail(adminEmail, adminSubject, adminHtml),
+	]);
+
+	if (customerRes.status === 'rejected' || (customerRes.value && !customerRes.value.ok)) {
+		const errBody = customerRes.status === 'fulfilled'
+			? await customerRes.value.json().catch(() => ({}))
+			: { message: String(customerRes.reason) };
+		console.error('Resend customer email error:', errBody);
+		return c.json({
+			success:     true,
+			orderId,
+			orderNumber,
+			emailWarning: errBody.message ?? 'Customer email failed',
+		}, 200);
 	}
 
-	return c.json({ success: true }, 200);
+	if (adminRes.status === 'rejected' || (adminRes.value && !adminRes.value.ok)) {
+		const errBody = adminRes.status === 'fulfilled'
+			? await adminRes.value.json().catch(() => ({}))
+			: { message: String(adminRes.reason) };
+		console.error('Resend admin email error:', errBody);
+	}
+
+	return c.json({ success: true, orderId, orderNumber }, 200);
 });
 
 export default checkout;

@@ -2,7 +2,7 @@ import { Images } from "./img.js";
 import React, { useRef } from "react";
 import { motion, useScroll, useTransform, useMotionValueEvent } from "motion/react";
 import { useState } from "react";
-import Header, { HeaderDrawer, CartIcon } from "./Header.jsx";
+import Header, {HeaderDrawer, CartIcon, CurrencySelector} from "./Header.jsx";
 import CartDrawer from "./cart/CartDrawer.jsx";
 import SearchOverlay from './SearchOverlay.jsx'
 import { Menu, Search, UserRound } from "lucide-react";
@@ -31,6 +31,7 @@ export default function HeroSection() {
                 </div>
                 <div className="absolute inset-0 z-0 bg-[#332E2C]/50" />
 
+                {/* Starting Header*/}
                 <div className="z-50 absolute flex items-center justify-between w-full px-10 lg:px-40 py-4 text-white">
                     <nav className="hidden md:flex items-center space-x-8 font-[Inter]">
                         <a href="/jorjimara/public" className="hover:opacity-60 transition-opacity">Home</a>
@@ -41,17 +42,24 @@ export default function HeroSection() {
                         <Menu className="w-6 h-6" onClick={() => setMenuOpen(true)} />
                     </div>
                     <nav className="flex items-center space-x-8 font-[Inter]">
-                        <div className="flex items-center space-x-5">
+                        {/* RIGHT NAV */}
+                        <nav className="flex items-center justify-end space-x-4 md:space-x-5">
+                            {/* Desktop search */}
                             <button
                                 onClick={() => setSearchOpen(true)}
-                                className="hover:opacity-60 transition-opacity"
+                                className="hidden md:block hover:opacity-60 transition-opacity"
                                 aria-label="Open search"
                             >
-                                <Search className="w-5 h-5" />
+                                <Search className="w-5 h-5 cursor-pointer" />
                             </button>
-                            <CartIcon onClick={() => setCartOpen(true)} className="w-6 h-6" />
+
+                            <div className="hidden md:block">
+                                <CurrencySelector light={true} />
+                            </div>
+
+                            <CartIcon onClick={() => setCartOpen(true)} />
                             {/*<UserRound className="hidden md:block w-5 h-5 cursor-pointer hover:opacity-60 transition-opacity" />*/}
-                        </div>
+                        </nav>
                     </nav>
                 </div>
 

@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useCart } from '../../context/CartContext.jsx'
 import { Plus, Minus, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-
-const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(n)
+import { useCurrency } from '../../context/CurrencyContext.jsx'
 
 function CartItem({ item }) {
     const { setQty, removeItem } = useCart()
+    const { formatPrice } = useCurrency()
 
     return (
         <div className="font-[Bricolage_Grotesque] flex gap-4 py-4 border-b border-stone-100">
@@ -36,7 +36,7 @@ function CartItem({ item }) {
                 )}
 
                 <p className="text-sm text-stone-700 font-medium mt-auto">
-                    ₦{fmt(item.price * item.quantity)}
+                    {formatPrice(item.price * item.quantity)}
                 </p>
 
                 {/* Qty controls */}
@@ -63,6 +63,7 @@ function CartItem({ item }) {
 
 export default function CartDrawer({ open, onClose }) {
     const { items, subtotal, totalItems, clearCart } = useCart()
+    const { formatPrice } = useCurrency()
     const navigate = useNavigate()
 
     // Lock scroll when open
@@ -167,14 +168,14 @@ export default function CartDrawer({ open, onClose }) {
                             <div className="px-6 py-6 border-t border-stone-100 flex flex-col gap-4">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm text-stone-600">Subtotal</span>
-                                    <span className="font-medium text-stone-900">₦{fmt(subtotal)}</span>
+                                    <span className="font-medium text-stone-900">{formatPrice(subtotal)}</span>
                                 </div>
                                 <p className="text-xs text-stone-400">Shipping and taxes calculated at checkout</p>
                                 <button
                                     onClick={() => { onClose(); navigate('/checkout') }}
                                     className="w-full bg-[#4d0011] hover:bg-[#3a000c] text-white py-4 text-sm tracking-widest uppercase font-medium transition-colors"
                                 >
-                                    Checkout — ₦{fmt(subtotal)}
+                                    Checkout — {formatPrice(subtotal)}
                                 </button>
                                 <button
                                     onClick={() => { onClose(); navigate('/products') }}

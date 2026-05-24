@@ -7,9 +7,7 @@ import Footer from '../components/Footer.jsx'
 import ProductImageCarousel from '../components/Productimagecarousel.jsx'
 import { useSearchResults, addRecentSearch } from '../hooks/Usesearch.js'
 import { useQuickView } from '../context/QuickViewContext.jsx'
-
-// ─── Format helpers ───────────────────────────────────────────────────────────
-const fmt = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n))
+import { useCurrency } from '../context/CurrencyContext.jsx'
 
 // ─── Highlight matching text ──────────────────────────────────────────────────
 function Highlight({ text, query }) {
@@ -42,6 +40,7 @@ function SkeletonCard() {
 function SearchResultCard({ product, query }) {
     const navigate        = useNavigate()
     const { openQuickView } = useQuickView()
+    const { formatPrice } = useCurrency()
 
     const goToProduct = () => navigate(`/products/${product.slug}`)
 
@@ -67,9 +66,9 @@ function SearchResultCard({ product, query }) {
                     <Highlight text={product.name} query={query} />
                 </p>
                 <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-sm text-stone-500 font-light">₦{fmt(product.price)}</span>
+                    <span className="text-sm text-stone-500 font-light">{formatPrice(product.price)}</span>
                     {product.comparePrice && (
-                        <span className="text-xs text-stone-400 line-through">₦{fmt(product.comparePrice)}</span>
+                        <span className="text-xs text-stone-400 line-through">{formatPrice(product.comparePrice)}</span>
                     )}
                 </div>
             </div>
