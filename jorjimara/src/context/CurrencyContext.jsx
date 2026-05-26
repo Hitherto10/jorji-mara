@@ -13,8 +13,7 @@ const CURRENCY_SYMBOLS = {
     AUD: 'A$'
 };
 
-const API_KEY = '1f750447b746daca0333fa02';
-const API_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/NGN`;
+const API_URL = `https://v6.exchangerate-api.com/v6/${import.meta.env.VITE_CURRENCY_API_KEY}/latest/NGN`;
 
 export const CurrencyProvider = ({ children }) => {
     const [currency, setCurrencyState] = useState(() => {

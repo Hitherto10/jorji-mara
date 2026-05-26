@@ -120,6 +120,20 @@ export async function persistOrder(db, orderData, lineItems) {
 		.single();
 
 	if (orderErr) {
+		// Race-safe idempotency: another concurrent caller already inserted this
+		// payment_ref. The DB-level unique constraint rejected us (code 23505).
+		// Return the existing order so the caller still gets a successful result.
+		if (orderErr.code === '23505') {
+			const { data: existing } = await db
+				.from('orders')
+				.select('id, order_number')
+				.eq('payment_ref', orderData.paymentRef)
+				.maybeSingle();
+			if (existing) {
+				console.warn(`[persistOrder] Concurrent insert raced for ${orderData.paymentRef}; reusing existing order ${existing.order_number}`);
+				return { order: existing, error: null, duplicate: true };
+			}
+		}
 		console.error('[persistOrder] order insert error:', orderErr);
 		return { order: null, error: orderErr.message };
 	}

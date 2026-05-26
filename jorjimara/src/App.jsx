@@ -11,6 +11,7 @@ const Home = lazy(() => import('./pages/Home.jsx'))
 const ShopPage = lazy(() => import('./pages/ShopPage.jsx'))
 const ProductPage = lazy(() => import('./pages/ProductPage.jsx'))
 const Checkout = lazy(() => import('./pages/Checkout.jsx'))
+const CheckoutSuccess = lazy(() => import('./pages/CheckoutSuccess.jsx'))
 const Contact = lazy(() => import('./pages/Contact.jsx'))
 const SizeChart = lazy(() => import('./pages/SizeChart.jsx'))
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy.jsx'))
@@ -32,6 +33,7 @@ function App() {
                                 <Route path="/products" element={<ShopPage />} />
                                 <Route path="/products/:slug" element={<ProductPage />} />
                                 <Route path="/checkout" element={<Checkout />} />
+                                <Route path="/checkout/success" element={<CheckoutSuccess />} />
                                 <Route path="/contact" element={<Contact />} />
                                 <Route path="/terms" element={<Terms />} />
                                 <Route path="/refund-policy" element={<RefundPolicy />} />

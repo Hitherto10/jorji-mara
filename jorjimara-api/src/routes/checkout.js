@@ -237,8 +237,509 @@ checkout.post('/init', async (c) => {
 		});
 	}
 
+	// ── Flutterwave ──────────────────────────────────────────────────────────
+	if (paymentMethod === 'flutterwave') {
+		const txRef = `JM_${Date.now()}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+		const flwRes = await fetch('https://api.flutterwave.com/v3/payments', {
+			method:  'POST',
+			headers: {
+				'Content-Type':  'application/json',
+				'Authorization': `Bearer ${c.env.FLUTTERWAVE_LIVE_SECRET_KEY}`,
+			},
+			body: JSON.stringify({
+				tx_ref:       txRef,
+				amount:       total,
+				currency:     'NGN',
+				redirect_url: `${c.env.FRONTEND_ORIGIN}/checkout/success`,
+				// redirect_url: `${c.env.FRONTEND_ORIGIN}/checkout/success`,
+				customer: {
+					email,
+					phonenumber: payerPhone,
+					name:        payerName,
+				},
+				customizations: {
+					title:       'Jorji Mara Apparel',
+					description: description || 'Order Payment',
+					logo:        `${c.env.FRONTEND_ORIGIN}/src/assets/icons/main_logo.png`,
+				},
+				meta: {
+					lineItems:     JSON.stringify(lineItems),
+					countryCode,
+					stateRegion:   stateRegion ?? '',
+					shippingCost,
+					subtotal,
+					payerName,
+					payerPhone,
+					customerEmail: email,
+					shippingAddress: JSON.stringify({
+						country: countryCode,
+						state:   stateRegion ?? '',
+					}),
+				},
+			}),
+		});
+
+		if (!flwRes.ok) {
+			const err = await flwRes.json().catch(() => ({}));
+			console.error('[Flutterwave init error]', err);
+			return c.json({ error: 'Payment initialization failed' }, 502);
+		}
+
+		const flwData = await flwRes.json();
+		if (flwData.status !== 'success') {
+			console.error('[Flutterwave init failed]', flwData);
+			return c.json({ error: 'Payment initialization failed', details: flwData.message }, 502);
+		}
+
+		return c.json({
+			paymentUrl: flwData.data.link,
+			reference:  txRef,
+			total,
+		});
+	}
+
 	return c.json({ error: 'Unsupported payment method' }, 400);
 });
+
+// ─── GET /api/checkout/verify-flutterwave ─────────────────────────────────────
+// Called by the /checkout/success page after Flutterwave redirects the user back.
+// Flutterwave appends: ?status=successful&tx_ref=JM_xxx&transaction_id=12345
+//
+// We verify the transaction server-side via Flutterwave's verify API,
+// then persist the order and return confirmation data to the frontend.
+checkout.get('/verify-flutterwave', async (c) => {
+	const { status, tx_ref, transaction_id } = c.req.query();
+
+	if (!transaction_id || !tx_ref) {
+		return c.json({ error: 'Missing transaction_id or tx_ref' }, 400);
+	}
+
+	if (status !== 'successful') {
+		return c.json({ error: 'Payment was not successful', status }, 402);
+	}
+
+	const db = createSupabaseClient(c.env);
+
+	// ── Idempotency: return existing order if already saved ──────────────────
+	const { data: existingOrder } = await db
+		.from('orders')
+		.select('id, order_number, status, payment_status, total')
+		.eq('payment_ref', tx_ref)
+		.maybeSingle();
+
+	if (existingOrder) {
+		return c.json({
+			success:       true,
+			orderId:       existingOrder.id,
+			orderNumber:   existingOrder.order_number,
+			paymentStatus: existingOrder.payment_status,
+			total:         existingOrder.total,
+			duplicate:     true,
+		});
+	}
+
+	// ── Verify with Flutterwave API ──────────────────────────────────────────
+	const verifyRes = await fetch(`https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`, {
+		headers: { 'Authorization': `Bearer ${c.env.FLUTTERWAVE_LIVE_SECRET_KEY}` },
+	});
+
+	if (!verifyRes.ok) {
+		console.error('[FLW verify] HTTP error', verifyRes.status);
+		return c.json({ error: 'Could not verify payment with Flutterwave' }, 502);
+	}
+
+	const verifyData = await verifyRes.json();
+
+	if (verifyData.status !== 'success' || verifyData.data?.status !== 'successful') {
+		console.warn('[FLW verify] Payment not confirmed:', verifyData);
+		return c.json({
+			error:   'Payment verification failed',
+			details: verifyData.message,
+		}, 402);
+	}
+
+	const txData     = verifyData.data;
+	const meta       = txData.meta ?? {};
+	const lineItems  = (() => {
+		try { return JSON.parse(meta.lineItems ?? '[]'); } catch { return []; }
+	})();
+
+	const subtotal    = Number(meta.subtotal ?? 0);
+	const shippingFee = Number(meta.shippingCost ?? 0);
+	const total       = txData.amount;
+
+	// ── Persist the order ────────────────────────────────────────────────────
+	const variantIds = lineItems.map(i => i.variantId).filter(Boolean);
+	let serverSubtotal = 0;
+	let orderLineItems = [];
+
+	if (variantIds.length > 0) {
+		const { data: variants } = await db
+			.from('product_variants')
+			.select('id, price, sku, size, color, product_id, products ( name, price )')
+			.in('id', variantIds)
+			.eq('is_active', true);
+
+		if (variants?.length) {
+			for (const item of lineItems) {
+				const variant = variants.find(v => v.id === item.variantId);
+				if (!variant) continue;
+				const unitPrice = Number(variant.price ?? variant.products?.price ?? item.price ?? 0);
+				const lineTotal = unitPrice * item.quantity;
+				serverSubtotal += lineTotal;
+				orderLineItems.push({
+					variant_id:    variant.id,
+					product_name:  variant.products?.name ?? 'Item',
+					variant_size:  variant.size ?? null,
+					variant_color: variant.color ?? null,
+					sku:           variant.sku ?? null,
+					quantity:      item.quantity,
+					unit_price:    unitPrice,
+					total_price:   lineTotal,
+				});
+			}
+		}
+	}
+
+	// Insert order
+	const shippingAddr = (() => { try { return JSON.parse(meta.shippingAddress ?? '{}'); } catch { return {}; } })();
+
+	const { data: newOrder, error: orderErr } = await db
+		.from('orders')
+		.insert({
+			payment_ref:       tx_ref,
+			payment_method:    'flutterwave',
+			payment_provider:  'flutterwave',
+			payment_status:    'paid',
+			status:            'confirmed',
+			paid_at:           new Date().toISOString(),
+			subtotal:          serverSubtotal || subtotal,
+			shipping_fee:      shippingFee,
+			discount_amount:   0,
+			total:             total,
+			currency:          'NGN',
+			shipping_name:     meta.payerName ?? txData.customer?.name ?? null,
+			shipping_phone:    meta.payerPhone ?? txData.customer?.phone_number ?? null,
+			shipping_country:  shippingAddr.country ?? meta.countryCode ?? null,
+			shipping_state:    shippingAddr.state ?? meta.stateRegion ?? null,
+			notes:             `Flutterwave payment. Customer: ${meta.customerEmail ?? txData.customer?.email}. FLW Ref: ${txData.flw_ref}`,
+		})
+		.select('id, order_number')
+		.single();
+
+	// Race-safe idempotency: if a concurrent request inserted the row between
+	// our SELECT and INSERT, the unique constraint on payment_ref will reject
+	// this insert with Postgres code 23505. Re-fetch and return the winner.
+	if (orderErr?.code === '23505') {
+		const { data: racedOrder } = await db
+			.from('orders')
+			.select('id, order_number, payment_status, total')
+			.eq('payment_ref', tx_ref)
+			.maybeSingle();
+
+		if (racedOrder) {
+			console.warn(`[FLW verify] Concurrent insert raced for tx_ref ${tx_ref}; returning existing order ${racedOrder.order_number}`);
+			return c.json({
+				success:       true,
+				orderId:       racedOrder.id,
+				orderNumber:   racedOrder.order_number,
+				paymentStatus: racedOrder.payment_status,
+				total:         racedOrder.total,
+				duplicate:     true,
+			});
+		}
+	}
+
+	if (orderErr || !newOrder) {
+		console.error('[FLW verify] order insert error:', orderErr);
+		return c.json({ error: 'Payment confirmed but order could not be saved. Please contact support.' }, 500);
+	}
+
+	// Insert line items
+	if (orderLineItems.length > 0) {
+		const itemRows = orderLineItems.map(r => ({ ...r, order_id: newOrder.id }));
+		const { error: itemsErr } = await db.from('order_items').insert(itemRows);
+		if (itemsErr) console.error('[FLW verify] order_items insert error:', itemsErr);
+	}
+
+	console.log(`[FLW verify] Order ${newOrder.order_number} created for tx_ref: ${tx_ref}`);
+
+	// ── Send confirmation emails ────────────────────────────────────────────
+	const customerEmail = meta.customerEmail ?? null;
+	const customerName  = meta.payerName ?? txData.customer?.name ?? 'there';
+	const adminEmail    = c.env.ADMIN_ORDER_EMAIL || 'jorjimara@gmail.com';
+	const fmt           = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n));
+
+	// Build item rows HTML (uses DB-resolved product names + prices)
+	const itemRowsHtml = orderLineItems.map(item => `
+		<tr>
+		  <td style="padding:16px 0;border-bottom:1px solid #F0EDE8;vertical-align:middle;">
+		    <table cellpadding="0" cellspacing="0" width="100%">
+		      <tr>
+		        <td style="vertical-align:middle;">
+		          <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#1a1a1a;line-height:1.4;font-family:Arial,sans-serif;">
+		            ${item.product_name}
+		          </p>
+		          ${item.variant_size || item.variant_color
+		            ? `<p style="margin:0 0 4px;font-size:13px;color:#888;font-family:Arial,sans-serif;">${[item.variant_size, item.variant_color].filter(Boolean).join(' / ')}</p>`
+		            : ''}
+		          <p style="margin:0;font-size:13px;color:#aaa;font-family:Arial,sans-serif;">Qty: ${item.quantity}</p>
+		        </td>
+		        <td style="vertical-align:middle;text-align:right;white-space:nowrap;padding-left:12px;">
+		          <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a1a;font-family:Arial,sans-serif;">&#8358;${fmt(item.total_price)}</p>
+		          ${item.quantity > 1
+		            ? `<p style="margin:4px 0 0;font-size:12px;color:#aaa;font-family:Arial,sans-serif;">&#8358;${fmt(item.unit_price)} each</p>`
+		            : ''}
+		        </td>
+		      </tr>
+		    </table>
+		  </td>
+		</tr>
+	`).join('');
+
+	const frontendOrigin = c.env.FRONTEND_ORIGIN || 'https://jorjimara.com';
+	const finalShippingFee = Number(meta.shippingCost ?? 0);
+	const finalSubtotal    = serverSubtotal || subtotal;
+
+	// ── Customer email ──────────────────────────────────────────────────────
+	const customerHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Order Confirmed — Jorji Mara</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F4F1ED;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F4F1ED;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;">
+
+        <tr>
+          <td align="center" style="padding-bottom:28px;">
+            <img src="${frontendOrigin}/src/assets/icons/main_logo.png" alt="Jorji Mara Apparel" style="display:block;max-height:45px;width:auto;margin:0 auto;" />
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#ffffff;border-radius:2px;overflow:hidden;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+
+              <tr>
+                <td style="background:#4d0011;padding:44px 44px 38px;">
+                  <h1 style="margin:0 0 8px;font-size:36px;line-height:1.15;color:#ffffff;font-family:Georgia,serif;font-weight:400;">
+                    Payment confirmed.
+                  </h1>
+                  <p style="margin:0;font-size:11px;color:rgba(255,255,255,0.55);letter-spacing:3px;text-transform:uppercase;">
+                    ORDER CONFIRMATION
+                  </p>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:36px 44px 32px;">
+                  <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#333;">
+                    Hey <strong>${customerName}</strong>,
+                  </p>
+                  <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#333;">
+                    Great news — your payment has been confirmed and your order is now being processed. We'll get to work on it right away.
+                  </p>
+                  <p style="margin:0 0 30px;font-size:15px;line-height:1.7;color:#333;">
+                    If you have any questions about your order, feel free to reach out and we'll be happy to help.
+                  </p>
+
+                  <table cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td>
+                        <a href="${frontendOrigin}"
+                           style="display:inline-block;background:#1a1a1a;color:#ffffff;text-decoration:none;
+                                  font-size:12px;font-weight:700;padding:13px 28px;letter-spacing:1.5px;
+                                  text-transform:uppercase;border-radius:2px;">
+                          Visit Store
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <tr><td style="padding:0 44px;"><div style="height:1px;background:#F0EDE8;"></div></td></tr>
+
+              <tr>
+                <td style="padding:28px 44px 8px;">
+                  <p style="margin:0;font-size:17px;font-weight:700;color:#1a1a1a;">Order summary</p>
+                  ${newOrder.order_number ? `<p style="margin:6px 0 0;font-size:12px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;">Order #${newOrder.order_number}</p>` : ''}
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:0 44px;">
+                  <table width="100%" cellpadding="0" cellspacing="0">${itemRowsHtml}</table>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:0 44px 36px;">
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;border-top:1px solid #F0EDE8;">
+                    <tr>
+                      <td style="padding:12px 0 4px;font-size:14px;color:#777;">Subtotal</td>
+                      <td style="padding:12px 0 4px;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(finalSubtotal)}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding:4px 0;font-size:14px;color:#777;">Shipping</td>
+                      <td style="padding:4px 0;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(finalShippingFee)}</td>
+                    </tr>
+                    <tr><td colspan="2" style="padding-top:14px;"><div style="height:2px;background:#1a1a1a;"></div></td></tr>
+                    <tr>
+                      <td style="padding:12px 0 0;font-size:20px;font-weight:700;color:#1a1a1a;">Total</td>
+                      <td style="padding:12px 0 0;font-size:20px;font-weight:700;color:#1a1a1a;text-align:right;">&#8358;${fmt(total)} NGN</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" style="padding:28px 20px 10px;">
+            <p style="margin:0;font-size:12px;color:#bbb;line-height:1.7;">
+              &copy; ${new Date().getFullYear()} Jorji Mara Apparel. All rights reserved.
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+	// ── Admin notification email ─────────────────────────────────────────────
+	const adminSubject = `New order ${newOrder.order_number ? `#${newOrder.order_number} ` : ''}— ₦${fmt(total)} (Flutterwave — paid)`;
+
+	const adminHtml = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>${adminSubject}</title></head>
+<body style="margin:0;padding:0;background-color:#F4F1ED;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F4F1ED;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border-radius:2px;overflow:hidden;">
+        <tr>
+          <td style="background:#4d0011;padding:32px 36px;">
+            <p style="margin:0 0 6px;font-size:11px;color:rgba(255,255,255,0.55);letter-spacing:3px;text-transform:uppercase;">New Order — Flutterwave</p>
+            <h1 style="margin:0;font-size:28px;line-height:1.2;color:#ffffff;font-family:Georgia,serif;font-weight:400;">
+              ${newOrder.order_number ? `Order #${newOrder.order_number}` : 'New Order'}
+            </h1>
+            <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Payment confirmed via Flutterwave</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:28px 36px 8px;">
+            <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#bbb;">Customer</p>
+            <p style="margin:0;font-size:14px;line-height:1.7;color:#333;">
+              <strong>${customerName}</strong><br/>
+              ${customerEmail ?? '—'}<br/>
+              ${meta.payerPhone ?? ''}
+            </p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:20px 36px 8px;">
+            <p style="margin:0;font-size:14px;font-weight:700;color:#1a1a1a;">Items</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 36px;">
+            <table width="100%" cellpadding="0" cellspacing="0">${itemRowsHtml}</table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 36px 28px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;border-top:1px solid #F0EDE8;">
+              <tr>
+                <td style="padding:12px 0 4px;font-size:14px;color:#777;">Subtotal</td>
+                <td style="padding:12px 0 4px;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(finalSubtotal)}</td>
+              </tr>
+              <tr>
+                <td style="padding:4px 0;font-size:14px;color:#777;">Shipping</td>
+                <td style="padding:4px 0;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(finalShippingFee)}</td>
+              </tr>
+              <tr><td colspan="2" style="padding-top:14px;"><div style="height:2px;background:#1a1a1a;"></div></td></tr>
+              <tr>
+                <td style="padding:12px 0 0;font-size:18px;font-weight:700;color:#1a1a1a;">Total</td>
+                <td style="padding:12px 0 0;font-size:18px;font-weight:700;color:#1a1a1a;text-align:right;">&#8358;${fmt(total)} NGN</td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 36px 32px;">
+            <div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:4px;padding:14px 16px;font-size:13px;color:#1b5e20;line-height:1.6;">
+              <strong>&#10003; Payment confirmed.</strong> Paid via Flutterwave.<br/>
+              <strong>Tx Ref:</strong> ${tx_ref}<br/>
+              <strong>FLW Ref:</strong> ${txData.flw_ref ?? '—'}
+            </div>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+	// Fire emails in parallel — non-blocking so a Resend failure never delays the response
+	const sendEmail = (to, subject, html) => fetch('https://api.resend.com/emails', {
+		method:  'POST',
+		headers: {
+			'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
+			'Content-Type':  'application/json',
+		},
+		body: JSON.stringify({
+			from:    c.env.RESEND_FROM_EMAIL || 'orders@jorjimara.com',
+			to:      [to],
+			subject,
+			html,
+		}),
+	});
+
+	// In Cloudflare Workers, the runtime can terminate pending I/O the moment
+	// c.json() returns. Without waitUntil, the Resend fetches above are killed
+	// mid-flight and no email is ever delivered.
+	const emailWork = Promise.allSettled([
+		customerEmail ? sendEmail(customerEmail, `Payment confirmed — Jorji Mara Apparel`, customerHtml) : Promise.resolve(),
+		sendEmail(adminEmail, adminSubject, adminHtml),
+	]).then(async results => {
+		for (let i = 0; i < results.length; i++) {
+			const r = results[i];
+			const which = i === 0 ? 'customer' : 'admin';
+			if (r.status === 'rejected') {
+				console.error(`[FLW verify] Email ${which} send rejected:`, r.reason);
+			} else if (r.value && !r.value.ok) {
+				const body = await r.value.json().catch(() => ({}));
+				console.error(`[FLW verify] Email ${which} send failed (HTTP ${r.value.status}):`, body);
+			}
+		}
+	});
+	c.executionCtx.waitUntil(emailWork);
+
+	return c.json({
+		success:       true,
+		orderId:       newOrder.id,
+		orderNumber:   newOrder.order_number,
+		paymentStatus: 'paid',
+		total,
+		customerEmail: meta.customerEmail ?? null,
+		customerName:  meta.payerName ?? txData.customer?.name,
+	});
+});
+
 
 // ─── GET /api/checkout/status/:rrr ────────────────────────────────────────────
 // Frontend fallback: poll this after returning from the Remita payment widget

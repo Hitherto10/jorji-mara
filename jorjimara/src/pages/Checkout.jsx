@@ -495,12 +495,24 @@ function StepShipping({ contact, data, onChange, onNext, onBack, items }) {
 }
 
 const PAYMENT_METHODS = [
+    // {
+    //     id: 'paystack',
+    //     label: 'Paystack',
+    //     description: 'Pay with your debit/credit card via Paystack',
+    //     icon: Images.paystackLogo,
+    // },
     {
-        id: 'bank_transfer',
-        label: 'Bank Transfer',
-        description: 'Direct Bank Transfer',
-        icon: null,
-    }
+        id: 'flutterwave',
+        label: 'Flutterwave',
+        description: 'Cards, bank transfer, and mobile money',
+        icon: Images.flutterwaveLogo,
+    },
+    // {
+    //     id: 'bank_transfer',
+    //     label: 'Bank Transfer',
+    //     description: 'Direct Bank Transfer',
+    //     icon: null,
+    // }
 ]
 
 function makePayment(rrr, orderData) {
@@ -719,7 +731,7 @@ function StepSuccess({ email, items, contact, shipping, subtotal, shippingFee, t
 
 function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
     const { formatPrice } = useCurrency();
-    const [selected, setSelected] = useState('bank_transfer')
+    const [selected, setSelected] = useState('flutterwave')
     const [placing, setPlacing] = useState(false)
 
     const shippingPrice = shipping.shippingFee ?? 0
@@ -731,7 +743,7 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
             if (selected === 'bank_transfer') {
                 // Generate a local order ref for bank transfers
                 const localOrderRef = `BT-${Date.now()}`;
-                
+
                 try {
                     await apiPost('/api/checkout/confirm', {
                         rrr: localOrderRef,
@@ -775,6 +787,61 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                 return;
             }
 
+            // ── Flutterwave ─────────────────────────────────────────────────────
+            if (selected === 'flutterwave') {
+                const initResponse = await apiPost('/api/checkout/init', {
+                    items: items.map(item => ({
+                        variantId: item.variantId,
+                        quantity:  item.quantity,
+                    })),
+                    countryCode:   shipping.country,
+                    stateRegion:   shipping.state || '',
+                    postcode:      shipping.postcode,
+                    email:         contact.email,
+                    payerName:     `${shipping.firstName} ${shipping.lastName}`,
+                    payerEmail:    contact.email,
+                    payerPhone:    shipping.phone,
+                    description:   'Jorji Mara Apparel Order',
+                    paymentMethod: 'flutterwave',
+                });
+
+                if (!initResponse.paymentUrl) {
+                    throw new Error('Failed to retrieve Flutterwave payment link');
+                }
+
+                // Redirect to Flutterwave hosted checkout page
+                window.location.href = initResponse.paymentUrl;
+                // Keep placing=true while redirecting so the button stays in loading state
+                return;
+            }
+
+            // ── Paystack ──────────────────────────────────────────────────────
+            if (selected === 'paystack') {
+                const initResponse = await apiPost('/api/checkout/init', {
+                    items: items.map(item => ({
+                        variantId: item.variantId,
+                        quantity:  item.quantity,
+                    })),
+                    countryCode:   shipping.country,
+                    stateRegion:   shipping.state || '',
+                    postcode:      shipping.postcode,
+                    email:         contact.email,
+                    payerName:     `${shipping.firstName} ${shipping.lastName}`,
+                    payerEmail:    contact.email,
+                    payerPhone:    shipping.phone,
+                    description:   'Jorji Mara Apparel Order',
+                    paymentMethod: 'paystack',
+                });
+
+                if (!initResponse.paymentUrl) {
+                    throw new Error('Failed to retrieve Paystack payment link');
+                }
+
+                window.location.href = initResponse.paymentUrl;
+                return;
+            }
+
+            // ── Remita (legacy) ────────────────────────────────────────────────
             // Step 1: Initialize checkout with Remita to generate RRR
             const initResponse = await apiPost('/api/checkout/init', {
                 items: items.map(item => ({
@@ -973,6 +1040,7 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                     ← Back
                 </button>
                 <button
+                    id="checkout-place-order-btn"
                     onClick={handlePlace}
                     disabled={placing}
                     className="flex-1 h-12 bg-[#4d0011] hover:bg-[#3a000c] disabled:bg-stone-400 text-white text-sm tracking-widest uppercase font-medium transition-colors flex items-center justify-center gap-2"
@@ -980,12 +1048,17 @@ function StepPayment({ contact, shipping, subtotal, items, onBack, onPlace }) {
                     {placing ? (
                         <>
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Confirming…
+                            {selected === 'bank_transfer' ? 'Confirming…' : 'Redirecting…'}
                         </>
-                    ) : (
+                    ) : selected === 'bank_transfer' ? (
                         <>
                             <Check className="w-4 h-4" />
                             I have paid {formatPrice(total)}
+                        </>
+                    ) : (
+                        <>
+                            <Lock className="w-4 h-4" />
+                            Proceed to Payment
                         </>
                     )}
                 </button>

@@ -236,4 +236,120 @@ router.post('/paystack', async (c) => {
 	return c.json({ received: true, action: 'created', orderId: order.id, orderNumber: order.order_number });
 });
 
+// ─── POST /api/webhooks/flutterwave ──────────────────────────────────────────
+//
+// Flutterwave webhook payload:
+// {
+//   event: 'charge.completed'
+//   data: {
+//     id:         number          — Flutterwave transaction ID
+//     tx_ref:     string          — our reference (JM_xxx)
+//     flw_ref:    string
+//     amount:     number
+//     currency:   'NGN'
+//     status:     'successful' | 'failed' | 'pending'
+//     customer:   { email, name, phone_number }
+//     meta:       { lineItems, shippingCost, subtotal, payerName, payerPhone, ... }
+//   }
+// }
+//
+// Flutterwave signs webhooks with a custom header: verif-hash
+// Set the secret in your Flutterwave dashboard and store it as FLUTTERWAVE_WEBHOOK_SECRET
+router.post('/flutterwave', async (c) => {
+	// ── Verify webhook signature ─────────────────────────────────────────────
+	const secretHash = c.env.FLUTTERWAVE_WEBHOOK_SECRET;
+	const signature  = c.req.header('verif-hash');
+
+	if (secretHash && signature !== secretHash) {
+		console.warn('[webhook/flutterwave] Invalid signature. Possible spoofed webhook.');
+		return c.json({ error: 'Invalid signature' }, 401);
+	}
+
+	let payload;
+	try {
+		payload = await c.req.json();
+	} catch {
+		return c.json({ error: 'Invalid JSON' }, 400);
+	}
+
+	// Only handle charge.completed events
+	if (payload.event !== 'charge.completed') {
+		return c.json({ received: true, action: 'none' });
+	}
+
+	const { id: transactionId, tx_ref, amount, status, customer, meta } = payload.data ?? {};
+
+	if (status !== 'successful') {
+		console.log('[webhook/flutterwave] Non-successful status:', status, 'for tx_ref:', tx_ref);
+		return c.json({ received: true, action: 'none' });
+	}
+
+	if (!tx_ref) {
+		return c.json({ error: 'Missing tx_ref' }, 400);
+	}
+
+	const db = createSupabaseClient(c.env);
+
+	// ── Idempotency check ────────────────────────────────────────────────────
+	const { data: existingOrder } = await db
+		.from('orders')
+		.select('id, order_number, payment_status')
+		.eq('payment_ref', tx_ref)
+		.maybeSingle();
+
+	if (existingOrder) {
+		if (existingOrder.payment_status !== 'paid') {
+			await db
+				.from('orders')
+				.update({ payment_status: 'paid', status: 'confirmed', paid_at: new Date().toISOString() })
+				.eq('id', existingOrder.id);
+		}
+		return c.json({ received: true, action: 'updated', orderId: existingOrder.id });
+	}
+
+	// ── No order yet — reconstruct from meta ─────────────────────────────────
+	// The /init route embeds lineItems + shipping info in Flutterwave's meta field
+	const lineItems = (() => {
+		try { return JSON.parse(meta?.lineItems ?? '[]'); } catch { return []; }
+	})();
+
+	if (!lineItems.length) {
+		console.warn('[webhook/flutterwave] No lineItems in meta for tx_ref:', tx_ref);
+		return c.json({ received: true, action: 'no_metadata' });
+	}
+
+	const subtotal    = Number(meta?.subtotal ?? 0);
+	const shippingFee = Number(meta?.shippingCost ?? 0);
+	const total       = amount;
+
+	const shippingAddr = (() => {
+		try { return JSON.parse(meta?.shippingAddress ?? '{}'); } catch { return {}; }
+	})();
+
+	const { order, error: saveErr } = await persistOrder(db, {
+		paymentRef:       tx_ref,
+		paymentMethod:    'flutterwave',
+		paymentProvider:  'flutterwave',
+		paymentStatus:    'paid',
+		subtotal:         subtotal || total - shippingFee,
+		shippingFee,
+		total,
+		shippingName:     meta?.payerName ?? customer?.name ?? null,
+		shippingPhone:    meta?.payerPhone ?? customer?.phone_number ?? null,
+		shippingAddress1: null,
+		shippingCity:     null,
+		shippingState:    shippingAddr.state ?? meta?.stateRegion ?? null,
+		shippingCountry:  shippingAddr.country ?? meta?.countryCode ?? 'Nigeria',
+		notes:            `Flutterwave webhook. Customer: ${customer?.email}. Transaction ID: ${transactionId}`,
+	}, lineItems);
+
+	if (saveErr) {
+		console.error('[webhook/flutterwave] persistOrder error:', saveErr);
+		return c.json({ error: 'Failed to save order' }, 500);
+	}
+
+	console.log(`[webhook/flutterwave] Order ${order.order_number} created for tx_ref: ${tx_ref}`);
+	return c.json({ received: true, action: 'created', orderId: order.id, orderNumber: order.order_number });
+});
+
 export default router;
