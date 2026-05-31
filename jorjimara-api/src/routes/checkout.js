@@ -465,14 +465,80 @@ checkout.get('/verify-flutterwave', async (c) => {
 
 	console.log(`[FLW verify] Order ${newOrder.order_number} created for tx_ref: ${tx_ref}`);
 
-	// ── Send confirmation emails ────────────────────────────────────────────
-	const customerEmail = meta.customerEmail ?? null;
-	const customerName  = meta.payerName ?? txData.customer?.name ?? 'there';
-	const adminEmail    = c.env.ADMIN_ORDER_EMAIL || 'jorjimara@gmail.com';
-	const fmt           = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n));
+	// Email confirmation is sent by the frontend via POST /send-order-confirmation
+	// immediately after this response arrives. That keeps it as a visible, awaitable
+	// network request rather than a fire-and-forget side-effect inside this handler.
+	return c.json({
+		success:       true,
+		orderId:       newOrder.id,
+		orderNumber:   newOrder.order_number,
+		paymentStatus: 'paid',
+		total,
+		subtotal:      serverSubtotal || subtotal,
+		shippingFee,
+		customerEmail: meta.customerEmail ?? txData.customer?.email ?? null,
+		customerName:  meta.payerName ?? txData.customer?.name ?? null,
+		payerPhone:    meta.payerPhone ?? txData.customer?.phone_number ?? null,
+		txRef:         tx_ref,
+		flwRef:        txData.flw_ref ?? null,
+	});
+});
 
-	// Build item rows HTML (uses DB-resolved product names + prices)
-	const itemRowsHtml = orderLineItems.map(item => `
+
+// ─── POST /api/checkout/send-order-confirmation ───────────────────────────────
+// Called by the frontend (CheckoutSuccess page) immediately after
+// verify-flutterwave succeeds. Fetches the saved order + items from the DB,
+// then sends confirmation emails to the customer and the admin via Resend.
+//
+// Using a dedicated route means:
+//  • The request is visible in the browser network tab
+//  • Resend calls are fully awaited — no fire-and-forget, no waitUntil needed
+//  • Failures surface as a real HTTP response, not a silent log line
+//
+// Body: { orderId, customerEmail, customerName, payerPhone?, txRef?, flwRef? }
+// Returns: { success, customer: { sent, error? }, admin: { sent, error? } }
+checkout.post('/send-order-confirmation', async (c) => {
+	let body;
+	try {
+		body = await c.req.json();
+	} catch {
+		return c.json({ error: 'Invalid JSON body' }, 400);
+	}
+
+	const { orderId, customerEmail, customerName, payerPhone, txRef, flwRef } = body;
+
+	if (!orderId) return c.json({ error: 'orderId is required' }, 400);
+
+	const db = createSupabaseClient(c.env);
+
+	// Fetch the order and its line items from the DB
+	const [{ data: order, error: orderErr }, { data: dbItems, error: itemsErr }] = await Promise.all([
+		db.from('orders')
+			.select('id, order_number, subtotal, shipping_fee, total, payment_ref, shipping_name, shipping_phone, shipping_state, shipping_country')
+			.eq('id', orderId)
+			.single(),
+		db.from('order_items')
+			.select('product_name, variant_size, variant_color, sku, quantity, unit_price, total_price')
+			.eq('order_id', orderId),
+	]);
+
+	if (orderErr || !order) {
+		console.error('[send-confirmation] Order lookup failed:', orderErr);
+		return c.json({ error: 'Order not found' }, 404);
+	}
+	if (itemsErr) {
+		console.warn('[send-confirmation] Could not fetch order items:', itemsErr);
+	}
+
+	const items        = dbItems ?? [];
+	const fmt          = (n) => new Intl.NumberFormat('en-NG', { minimumFractionDigits: 2 }).format(Number(n));
+	const frontendOrigin = c.env.FRONTEND_ORIGIN || 'https://jorjimara.com';
+	const adminEmail   = c.env.ADMIN_ORDER_EMAIL || 'jorjimara@gmail.com';
+	const name         = customerName || order.shipping_name || 'there';
+	const phone        = payerPhone   || order.shipping_phone || '';
+
+	// ── Build shared item rows HTML ──────────────────────────────────────────
+	const itemRowsHtml = items.map(item => `
 		<tr>
 		  <td style="padding:16px 0;border-bottom:1px solid #F0EDE8;vertical-align:middle;">
 		    <table cellpadding="0" cellspacing="0" width="100%">
@@ -498,11 +564,7 @@ checkout.get('/verify-flutterwave', async (c) => {
 		</tr>
 	`).join('');
 
-	const frontendOrigin = c.env.FRONTEND_ORIGIN || 'https://jorjimara.com';
-	const finalShippingFee = Number(meta.shippingCost ?? 0);
-	const finalSubtotal    = serverSubtotal || subtotal;
-
-	// ── Customer email ──────────────────────────────────────────────────────
+	// ── Customer confirmation email ──────────────────────────────────────────
 	const customerHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -539,7 +601,7 @@ checkout.get('/verify-flutterwave', async (c) => {
               <tr>
                 <td style="padding:36px 44px 32px;">
                   <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#333;">
-                    Hey <strong>${customerName}</strong>,
+                    Hey <strong>${name}</strong>,
                   </p>
                   <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#333;">
                     Great news — your payment has been confirmed and your order is now being processed. We'll get to work on it right away.
@@ -547,7 +609,6 @@ checkout.get('/verify-flutterwave', async (c) => {
                   <p style="margin:0 0 30px;font-size:15px;line-height:1.7;color:#333;">
                     If you have any questions about your order, feel free to reach out and we'll be happy to help.
                   </p>
-
                   <table cellpadding="0" cellspacing="0">
                     <tr>
                       <td>
@@ -568,7 +629,7 @@ checkout.get('/verify-flutterwave', async (c) => {
               <tr>
                 <td style="padding:28px 44px 8px;">
                   <p style="margin:0;font-size:17px;font-weight:700;color:#1a1a1a;">Order summary</p>
-                  ${newOrder.order_number ? `<p style="margin:6px 0 0;font-size:12px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;">Order #${newOrder.order_number}</p>` : ''}
+                  ${order.order_number ? `<p style="margin:6px 0 0;font-size:12px;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;">Order #${order.order_number}</p>` : ''}
                 </td>
               </tr>
 
@@ -583,16 +644,16 @@ checkout.get('/verify-flutterwave', async (c) => {
                   <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;border-top:1px solid #F0EDE8;">
                     <tr>
                       <td style="padding:12px 0 4px;font-size:14px;color:#777;">Subtotal</td>
-                      <td style="padding:12px 0 4px;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(finalSubtotal)}</td>
+                      <td style="padding:12px 0 4px;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(order.subtotal)}</td>
                     </tr>
                     <tr>
                       <td style="padding:4px 0;font-size:14px;color:#777;">Shipping</td>
-                      <td style="padding:4px 0;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(finalShippingFee)}</td>
+                      <td style="padding:4px 0;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(order.shipping_fee)}</td>
                     </tr>
                     <tr><td colspan="2" style="padding-top:14px;"><div style="height:2px;background:#1a1a1a;"></div></td></tr>
                     <tr>
                       <td style="padding:12px 0 0;font-size:20px;font-weight:700;color:#1a1a1a;">Total</td>
-                      <td style="padding:12px 0 0;font-size:20px;font-weight:700;color:#1a1a1a;text-align:right;">&#8358;${fmt(total)} NGN</td>
+                      <td style="padding:12px 0 0;font-size:20px;font-weight:700;color:#1a1a1a;text-align:right;">&#8358;${fmt(order.total)} NGN</td>
                     </tr>
                   </table>
                 </td>
@@ -617,7 +678,7 @@ checkout.get('/verify-flutterwave', async (c) => {
 </html>`;
 
 	// ── Admin notification email ─────────────────────────────────────────────
-	const adminSubject = `New order ${newOrder.order_number ? `#${newOrder.order_number} ` : ''}— ₦${fmt(total)} (Flutterwave — paid)`;
+	const adminSubject = `New order ${order.order_number ? `#${order.order_number} ` : ''}— ₦${fmt(order.total)} (Flutterwave — paid)`;
 
 	const adminHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -630,7 +691,7 @@ checkout.get('/verify-flutterwave', async (c) => {
           <td style="background:#4d0011;padding:32px 36px;">
             <p style="margin:0 0 6px;font-size:11px;color:rgba(255,255,255,0.55);letter-spacing:3px;text-transform:uppercase;">New Order — Flutterwave</p>
             <h1 style="margin:0;font-size:28px;line-height:1.2;color:#ffffff;font-family:Georgia,serif;font-weight:400;">
-              ${newOrder.order_number ? `Order #${newOrder.order_number}` : 'New Order'}
+              ${order.order_number ? `Order #${order.order_number}` : 'New Order'}
             </h1>
             <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.8);">Payment confirmed via Flutterwave</p>
           </td>
@@ -640,9 +701,9 @@ checkout.get('/verify-flutterwave', async (c) => {
           <td style="padding:28px 36px 8px;">
             <p style="margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#bbb;">Customer</p>
             <p style="margin:0;font-size:14px;line-height:1.7;color:#333;">
-              <strong>${customerName}</strong><br/>
+              <strong>${name}</strong><br/>
               ${customerEmail ?? '—'}<br/>
-              ${meta.payerPhone ?? ''}
+              ${phone}
             </p>
           </td>
         </tr>
@@ -664,16 +725,16 @@ checkout.get('/verify-flutterwave', async (c) => {
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;border-top:1px solid #F0EDE8;">
               <tr>
                 <td style="padding:12px 0 4px;font-size:14px;color:#777;">Subtotal</td>
-                <td style="padding:12px 0 4px;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(finalSubtotal)}</td>
+                <td style="padding:12px 0 4px;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(order.subtotal)}</td>
               </tr>
               <tr>
                 <td style="padding:4px 0;font-size:14px;color:#777;">Shipping</td>
-                <td style="padding:4px 0;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(finalShippingFee)}</td>
+                <td style="padding:4px 0;font-size:14px;color:#777;text-align:right;">&#8358;${fmt(order.shipping_fee)}</td>
               </tr>
               <tr><td colspan="2" style="padding-top:14px;"><div style="height:2px;background:#1a1a1a;"></div></td></tr>
               <tr>
                 <td style="padding:12px 0 0;font-size:18px;font-weight:700;color:#1a1a1a;">Total</td>
-                <td style="padding:12px 0 0;font-size:18px;font-weight:700;color:#1a1a1a;text-align:right;">&#8358;${fmt(total)} NGN</td>
+                <td style="padding:12px 0 0;font-size:18px;font-weight:700;color:#1a1a1a;text-align:right;">&#8358;${fmt(order.total)} NGN</td>
               </tr>
             </table>
           </td>
@@ -683,8 +744,8 @@ checkout.get('/verify-flutterwave', async (c) => {
           <td style="padding:0 36px 32px;">
             <div style="background:#E8F5E9;border:1px solid #A5D6A7;border-radius:4px;padding:14px 16px;font-size:13px;color:#1b5e20;line-height:1.6;">
               <strong>&#10003; Payment confirmed.</strong> Paid via Flutterwave.<br/>
-              <strong>Tx Ref:</strong> ${tx_ref}<br/>
-              <strong>FLW Ref:</strong> ${txData.flw_ref ?? '—'}
+              ${txRef  ? `<strong>Tx Ref:</strong> ${txRef}<br/>` : ''}
+              ${flwRef ? `<strong>FLW Ref:</strong> ${flwRef}` : ''}
             </div>
           </td>
         </tr>
@@ -694,49 +755,46 @@ checkout.get('/verify-flutterwave', async (c) => {
 </body>
 </html>`;
 
-	// Fire emails in parallel — non-blocking so a Resend failure never delays the response
-	const sendEmail = (to, subject, html) => fetch('https://api.resend.com/emails', {
-		method:  'POST',
-		headers: {
-			'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
-			'Content-Type':  'application/json',
-		},
-		body: JSON.stringify({
-			from:    c.env.RESEND_FROM_EMAIL || 'orders@jorjimara.com',
-			to:      [to],
-			subject,
-			html,
-		}),
-	});
+	// ── Send both emails — fully awaited, no fire-and-forget ─────────────────
+	const sendEmail = async (to, subject, html) => {
+		const res = await fetch('https://api.resend.com/emails', {
+			method:  'POST',
+			headers: {
+				'Authorization': `Bearer ${c.env.RESEND_API_KEY}`,
+				'Content-Type':  'application/json',
+			},
+			body: JSON.stringify({
+				from:    c.env.RESEND_FROM_EMAIL || 'orders@jorjimara.com',
+				to:      [to],
+				subject,
+				html,
+			}),
+		});
+		const resBody = await res.json().catch(() => ({}));
+		return { ok: res.ok, status: res.status, body: resBody };
+	};
 
-	// In Cloudflare Workers, the runtime can terminate pending I/O the moment
-	// c.json() returns. Without waitUntil, the Resend fetches above are killed
-	// mid-flight and no email is ever delivered.
-	const emailWork = Promise.allSettled([
-		customerEmail ? sendEmail(customerEmail, `Payment confirmed — Jorji Mara Apparel`, customerHtml) : Promise.resolve(),
+	const [customerResult, adminResult] = await Promise.allSettled([
+		customerEmail
+			? sendEmail(customerEmail, `Payment confirmed — Jorji Mara Apparel`, customerHtml)
+			: Promise.resolve({ ok: true, skipped: true, reason: 'no customer email provided' }),
 		sendEmail(adminEmail, adminSubject, adminHtml),
-	]).then(async results => {
-		for (let i = 0; i < results.length; i++) {
-			const r = results[i];
-			const which = i === 0 ? 'customer' : 'admin';
-			if (r.status === 'rejected') {
-				console.error(`[FLW verify] Email ${which} send rejected:`, r.reason);
-			} else if (r.value && !r.value.ok) {
-				const body = await r.value.json().catch(() => ({}));
-				console.error(`[FLW verify] Email ${which} send failed (HTTP ${r.value.status}):`, body);
-			}
-		}
-	});
-	c.executionCtx.waitUntil(emailWork);
+	]);
+
+	const customerOutcome = customerResult.status === 'fulfilled'
+		? customerResult.value
+		: { ok: false, error: String(customerResult.reason) };
+	const adminOutcome = adminResult.status === 'fulfilled'
+		? adminResult.value
+		: { ok: false, error: String(adminResult.reason) };
+
+	if (!customerOutcome.ok) console.error('[send-confirmation] Customer email failed:', customerOutcome);
+	if (!adminOutcome.ok)    console.error('[send-confirmation] Admin email failed:',    adminOutcome);
 
 	return c.json({
-		success:       true,
-		orderId:       newOrder.id,
-		orderNumber:   newOrder.order_number,
-		paymentStatus: 'paid',
-		total,
-		customerEmail: meta.customerEmail ?? null,
-		customerName:  meta.payerName ?? txData.customer?.name,
+		success:  customerOutcome.ok || adminOutcome.ok,
+		customer: { sent: !!customerOutcome.ok, ...(customerOutcome.ok ? {} : { error: customerOutcome.body ?? customerOutcome.error }) },
+		admin:    { sent: !!adminOutcome.ok,    ...(adminOutcome.ok    ? {} : { error: adminOutcome.body    ?? adminOutcome.error    }) },
 	});
 });
 

@@ -15,6 +15,17 @@ async function apiGet(path) {
     return data
 }
 
+async function apiPost(path, payload) {
+    const res = await fetch(`${BASE_URL}${path}`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+    return data
+}
+
 // ─── Status states
 const STATE = {
     VERIFYING: 'verifying',
@@ -64,13 +75,32 @@ export default function CheckoutSuccess() {
             return
         }
 
-        // Verify the payment server-side
+        // Step 1 — Verify the payment server-side and save the order
         const params = new URLSearchParams({ status, tx_ref: txRef, transaction_id: transactionId })
         apiGet(`/api/checkout/verify-flutterwave?${params.toString()}`)
-            .then(data => {
+            .then(async data => {
                 setOrder(data)
                 setState(STATE.SUCCESS)
                 clearCart()
+
+                // Step 2 — Send confirmation emails via a dedicated route so the
+                // call is visible in the network tab and is fully awaited server-side.
+                // We fire this after showing success — a slow/failed email send must
+                // never block the customer seeing their confirmation.
+                try {
+                    const emailResult = await apiPost('/api/checkout/send-order-confirmation', {
+                        orderId:       data.orderId,
+                        customerEmail: data.customerEmail,
+                        customerName:  data.customerName,
+                        payerPhone:    data.payerPhone,
+                        txRef:         data.txRef,
+                        flwRef:        data.flwRef,
+                    })
+                    console.log('[CheckoutSuccess] Confirmation emails:', emailResult)
+                } catch (emailErr) {
+                    // Non-fatal — order is confirmed, email delivery can be retried
+                    console.warn('[CheckoutSuccess] Confirmation email request failed:', emailErr.message)
+                }
             })
             .catch(err => {
                 console.error('[CheckoutSuccess] Verification error:', err)
