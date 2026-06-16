@@ -92,11 +92,11 @@ export default function ProductImageCarousel({
 
             {/* ── Badges ── */}
             <div className="absolute top-3 left-3 flex flex-col gap-1 z-10 pointer-events-none">
-                {badge && (
-                    <span className="bg-stone-900 text-white text-[9px] tracking-widest uppercase font-medium px-2 py-0.5">
-                        {badge}
-                    </span>
-                )}
+                {/*{badge && (*/}
+                {/*    <span className="bg-stone-900 text-white text-[9px] tracking-widest uppercase font-medium px-2 py-0.5">*/}
+                {/*        {badge}*/}
+                {/*    </span>*/}
+                {/*)}*/}
                 {isOutOfStock && (
                     <span className="bg-white/90 text-stone-600 text-[9px] tracking-widest uppercase px-2 py-0.5">
                         Sold out

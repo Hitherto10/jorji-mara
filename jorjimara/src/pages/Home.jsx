@@ -68,7 +68,8 @@ function ProductCard({ product }) {
                 {/* Badge */}
                 {product.badge && (
                     <span className="absolute top-3 left-3 bg-stone-900 text-white text-[9px] tracking-widest uppercase font-medium px-2 py-1">
-                        {product.badge}
+                        Featured
+                        {/*{product.badge}*/}
                     </span>
                 )}
 
@@ -164,7 +165,7 @@ export default function Home() {
             <section className="mx-auto font-[Bricolage_Grotesque] py-12 px-4 md:px-12 lg:px-28">
                 <div className="flex flex-col md:flex-row md:items-baseline justify-between mb-8 gap-6">
                     <h2 className="font-serif text-3xl md:text-4xl font-light tracking-tight text-stone-900">
-                        Our Latest <em className="italic font-light">Arrivals</em>
+                        Our Featured <em className="italic font-light">Line</em>
                     </h2>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
