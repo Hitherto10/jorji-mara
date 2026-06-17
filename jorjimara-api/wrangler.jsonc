@@ -81,9 +81,11 @@
 	],
 	"vars": {
 		// Non-sensitive public vars go here
-		 "FRONTEND_ORIGIN": "https://jorjimara.com"
-//		"FRONTEND_ORIGIN": "http://localhost:5173"
+		"FRONTEND_ORIGIN": "https://jorjimara.com",
+		"ADMIN_ORIGIN": "https://admin.jorjimara.com"
 		// Sensitive secrets are set via: wrangler secret put SECRET_NAME
 		// Never put secrets in wrangler.jsonc
+		// Required secrets:
+		//   wrangler secret put ADMIN_SECRET   ← admin panel password
 	}
 }
